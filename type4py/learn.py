@@ -1,6 +1,5 @@
 from type4py.data_loaders import select_data, TripletDataset
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
-from type4py.predict import predict_type_embed
 from type4py.eval import eval_type_embed
 from torch.utils.data import DataLoader
 from typing import Tuple
@@ -100,7 +99,8 @@ def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, t
 def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader: DataLoader,
                    valid_data_loader: DataLoader, learning_rate: float, epochs: int,
                    common_types: set, model_path: str):
-
+    from type4py.predict import predict_type_embed
+    
     for epoch in range(1, epochs + 1):
         model.train()
         epoch_start_t = time()
@@ -127,12 +127,13 @@ def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader:
         if epoch % 5 == 0:
             valid_start = time()
             valid_loss, valid_all_acc = compute_validation_loss_dsl(model, criterion, train_data_loader, valid_data_loader,
-                                                                    common_types)
+                                                                    predict_type_embed, common_types)
             print(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
             #torch.save(model.module, join(model_path, f"{model.module.tw_embed_model.__class__.__name__}_{train_data_loader.dataset.dataset_name}_e{epoch}_{datetime.now().strftime('%b%d_%H-%M-%S')}.pt"))
 
 def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_loader: DataLoader,
-                                valid_data_loader: DataLoader, common_types: set) -> Tuple[float, float]:
+                                valid_data_loader: DataLoader, pred_func: callable,
+                                 common_types: set) -> Tuple[float, float]:
     """
     Computes validation loss for Deep Similarity Learning-based approach
     """
@@ -181,7 +182,7 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
 
 def train(output_path: str, data_loading_funcs: dict):
-
+    
     # Loading dataset
     load_data_t = time()
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
@@ -192,7 +193,7 @@ def train(output_path: str, data_loading_funcs: dict):
     print(f"Number of training samples: {len(X_id_train):,}")
     print(f"Number of validation samples: {len(X_id_valid):,}")
 
-    # Select data points which has at least frequency of 3 or more (for similary learning)
+    # Select data points which has at least frequency of 3 or more (for similarity learning)
     train_mask = select_data(Y_all_train, 3)
     X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
                 X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]

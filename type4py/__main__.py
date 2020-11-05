@@ -3,6 +3,7 @@ from type4py.preprocess import preprocess_ext_fns
 from type4py.vectorize import vectorize_args_ret
 from type4py import data_loaders
 from type4py.learn import train
+from type4py.predict import test
 import argparse
 
 data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': data_loaders.load_combined_valid_data,
@@ -25,6 +26,11 @@ def learn(args):
     else:
         train(args.o, data_loading_comb)
 
+def predict(args):
+    if args.a or args.r:
+        args.c = False
+    else:
+        test(args.o, data_loading_comb)
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -56,6 +62,13 @@ def main():
     learning_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
     learning_parser.add_argument('--p', '--parameters', required=False, type=str, help="Path to the JSON file of model's hyper-parameters")
     learning_parser.set_defaults(func=learn)
+
+    predict_parser = sub_parsers.add_parser('predict')
+    predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    predict_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
+    predict_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
+    predict_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
+    predict_parser.set_defaults(func=predict)
 
     args = arg_parser.parse_args()
     args.func(args)
