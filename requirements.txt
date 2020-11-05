@@ -4,3 +4,4 @@ asttokens
 docstring-parser
 scikit-learn
 gensim
+annoy

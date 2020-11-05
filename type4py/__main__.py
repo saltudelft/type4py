@@ -1,7 +1,13 @@
 from type4py.extract_pipeline import Pipeline
 from type4py.preprocess import preprocess_ext_fns
 from type4py.vectorize import vectorize_args_ret
+from type4py import data_loaders
+from type4py.learn import train
 import argparse
+
+data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': data_loaders.load_combined_valid_data,
+                     'test': data_loaders.load_combined_test_data, 'labels': data_loaders.load_combined_labels, 
+                     'name': 'combined'}
 
 def extract(args):
     p = Pipeline(args.c, args.o)
@@ -16,8 +22,8 @@ def vectorize(args):
 def learn(args):
     if args.a or args.r:
         args.c = False
-    
-    print(args)
+    else:
+        train(args.o, data_loading_comb)
 
 
 def main():
