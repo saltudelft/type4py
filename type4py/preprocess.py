@@ -323,7 +323,7 @@ def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame,
 
     return df_ret, df_params, le_all
 
-def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1000):
+def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024):
     """
     It generates top n most frequent available types
     :param top_n:
@@ -357,7 +357,7 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_aval_type
         for i, t in enumerate(types):
             if x in t:
                 return i
-        return len(types)
+        return len(types) - 1
 
     # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
     df_param['param_aval_enc'] = df_param['arg_type'].apply(trans_aval_type)
@@ -444,11 +444,10 @@ def preprocess_ext_fns(output_dir: str):
     assert list(set(df_ret_test['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
 
     # Store the dataframes and the label encoders
+    print("Saving preprocessed functions on the disk...")
     with open(os.path.join(output_dir, "label_encoder_all.pkl"), 'wb') as file:
         pickle.dump(le_all, file)
     
-    #df.to_csv(config.ML_RETURN_DF_PATH_TW, index=False)
-    #df_params.to_csv(config.ML_PARAM_DF_PATH_TW, index=False)
     df_params_train.to_csv(os.path.join(output_dir, "_ml_param_train.csv"), index=False)
     df_params_valid.to_csv(os.path.join(output_dir, "_ml_param_valid.csv"), index=False)
     df_params_test.to_csv(os.path.join(output_dir, "_ml_param_test.csv"), index=False)

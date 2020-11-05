@@ -3,3 +3,4 @@ pandas
 asttokens
 docstring-parser
 scikit-learn
+gensim

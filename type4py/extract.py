@@ -372,7 +372,7 @@ def parse_df(files: list, batch_size=10) -> pd.DataFrame:
         if i % 100 == 0:
             print(f"Loaded {i}/{len(files)} files")
 
-        _loaded = pd.read_csv(file)
+        _loaded = pd.read_csv(file, low_memory=False)
         total += len(_loaded)
         if df_merged is None:
             df_merged = _loaded
