@@ -10,6 +10,7 @@ from annoy import AnnoyIndex
 import numpy as np
 import torch.nn as nn
 import torch
+import pickle
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -171,7 +172,7 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
             computed_embed_labels_valid.append(anchor[1].data.cpu().numpy())
 
         annoy_index = create_knn_index(np.vstack(computed_embed_batches_train), None, computed_embed_batches_train[0].shape[1], 20)
-        pred_valid_embed, _ = predict_type_embed(np.vstack(computed_embed_batches_valid), np.hstack(computed_embed_labels_train),
+        pred_valid_embed, _ = pred_func(np.vstack(computed_embed_batches_valid), np.hstack(computed_embed_labels_train),
                                                                 annoy_index, 10)
         acc_all, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
                                                            common_types, 10)
@@ -206,6 +207,9 @@ def train(output_path: str, data_loading_funcs: dict):
     common_types = [t.item() for t in Y_all_train if count_types[t.item()] >= 100]
     print("Percentage of common types: %.2f%%" % (len(common_types) / Y_all_train.shape[0]*100.0))
     common_types = set(common_types)
+
+    with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
+        pickle.dump(common_types, f)
 
     # Model's hyper parameters
     model_params = load_model_params()

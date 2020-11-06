@@ -4,6 +4,7 @@ from type4py.vectorize import vectorize_args_ret
 from type4py import data_loaders
 from type4py.learn import train
 from type4py.predict import test
+from type4py.eval import evaluate
 import argparse
 
 data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': data_loaders.load_combined_valid_data,
@@ -31,6 +32,12 @@ def predict(args):
         args.c = False
     else:
         test(args.o, data_loading_comb)
+
+def eval(args):
+    if args.a or args.r:
+        args.c = False
+    else:
+       evaluate(args.o, data_loading_comb, args.tp)
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -69,6 +76,14 @@ def main():
     predict_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     predict_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
     predict_parser.set_defaults(func=predict)
+
+    eval_parser = sub_parsers.add_parser('eval')
+    eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    eval_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
+    eval_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
+    eval_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
+    eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
+    eval_parser.set_defaults(func=eval)
 
     args = arg_parser.parse_args()
     args.func(args)

@@ -104,3 +104,8 @@ def test(output_path: str, data_loading_funcs: dict):
     pred_test_embed, pred_test_score = predict_type_embed(test_type_embed,
                                                           np.concatenate((embed_train_labels, embed_valid_labels)),
                                                           annoy_index, model_params['k'])
+    
+    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_pred.npy"),
+            pred_test_embed)
+    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"),
+            embed_test_labels)
