@@ -1,6 +1,7 @@
 from type4py.data_loaders import select_data, TripletDataset
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
+from type4py.utils import load_json
 from torch.utils.data import DataLoader
 from typing import Tuple
 from collections import Counter
@@ -17,7 +18,8 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def load_model_params(params_file_path: str=None) -> dict:
 
     if params_file_path is not None:
-        pass
+        print("Loading user-provided hyper-parameters for the Type4Py model...")
+        return load_json(params_file_path)
     else:
         return {'epochs': 10, 'lr': 0.002, 'dr': 0.25, 'output_size': 4096,
                 'batches': 2536, 'layers': 1, 'hidden_size': 512,
@@ -180,10 +182,10 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
     return valid_total_loss, acc_all
 
-
-
-def train(output_path: str, data_loading_funcs: dict):
+def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     
+    print(f"Training Type4Py model for {data_loading_funcs['name']} prediction task")
+    print(f"***********************************************************************")
     # Loading dataset
     load_data_t = time()
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
@@ -212,7 +214,7 @@ def train(output_path: str, data_loading_funcs: dict):
         pickle.dump(common_types, f)
 
     # Model's hyper parameters
-    model_params = load_model_params()
+    model_params = load_model_params(model_params_path)
 
     # Batch loaders
     train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \

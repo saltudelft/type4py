@@ -3,6 +3,7 @@ from tqdm import tqdm
 from joblib import Parallel
 import time
 import os
+import json
 
 def filter_directory(directory: str, extension: str = '.py') -> str:
         """
@@ -45,6 +46,10 @@ def read_file(filename: str) -> str:
     """
     with open(filename) as file:
         return file.read()
+
+def load_json(f_path):
+    with open(f_path, 'r') as json_file:
+        return json.load(json_file)
 
 def mk_dir_not_exist(path: str):
     if not os.path.isdir(path):

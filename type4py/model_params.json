@@ -1,0 +1,11 @@
+{
+    "epochs": 5,
+    "lr": 0.002,
+    "dr": 0.25,
+    "output_size": 4096,
+    "batches": 2536,
+    "layers": 1,
+    "hidden_size": 512,
+    "margin": 2.0,
+    "k": 10
+}

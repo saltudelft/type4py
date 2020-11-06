@@ -57,6 +57,8 @@ def compute_type_embed_batch(model: TripletModel, data_loader: DataLoader) -> Tu
 
 def test(output_path: str, data_loading_funcs: dict):
 
+    print(f"Testing Type4Py model for {data_loading_funcs['name']} prediction task")
+    print(f"**********************************************************************")
     # Loading dataset
     load_data_t = time()
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)

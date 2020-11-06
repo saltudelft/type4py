@@ -31,11 +31,11 @@ def vectorize(args):
 
 def learn(args):
     if args.a:
-        train(args.o, data_loading_param)
+        train(args.o, data_loading_param, args.p)
     elif args.r:
-        train(args.o, data_loading_ret)
+        train(args.o, data_loading_ret, args.p)
     else:
-        train(args.o, data_loading_comb)
+        train(args.o, data_loading_comb, args.p)
 
 def predict(args):
     if args.a:

@@ -94,6 +94,8 @@ def eval_pred_dsl(y_true, y_pred, top_n=10):
 
 def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
 
+    print(f"Evaluating Type4Py model for {data_loading_funcs['name']} prediction task")
+    print(f"*************************************************************************")
     # Loading label encoder andd common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     common_types = pickle.load(open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'rb'))
