@@ -11,6 +11,14 @@ data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': da
                      'test': data_loaders.load_combined_test_data, 'labels': data_loaders.load_combined_labels, 
                      'name': 'combined'}
 
+data_loading_param = {'train': data_loaders.load_param_train_data, 'valid': data_loaders.load_param_valid_data,
+                     'test': data_loaders.load_param_test_data, 'labels': data_loaders.load_param_labels, 
+                     'name': 'argument'}
+
+data_loading_ret = {'train': data_loaders.load_ret_train_data, 'valid': data_loaders.load_ret_valid_data,
+                     'test': data_loaders.load_ret_test_data, 'labels': data_loaders.load_ret_labels, 
+                     'name': 'return'}
+
 def extract(args):
     p = Pipeline(args.c, args.o)
     p.run(args.w, args.l)
@@ -22,22 +30,28 @@ def vectorize(args):
     vectorize_args_ret(args.o)
 
 def learn(args):
-    if args.a or args.r:
-        args.c = False
+    if args.a:
+        train(args.o, data_loading_param)
+    elif args.r:
+        train(args.o, data_loading_ret)
     else:
         train(args.o, data_loading_comb)
 
 def predict(args):
-    if args.a or args.r:
-        args.c = False
+    if args.a:
+        test(args.o, data_loading_param)
+    elif args.r:
+        test(args.o, data_loading_ret)
     else:
         test(args.o, data_loading_comb)
 
 def eval(args):
-    if args.a or args.r:
-        args.c = False
+    if args.a:
+        evaluate(args.o, data_loading_param, args.tp)
+    elif args.r:
+        evaluate(args.o, data_loading_ret, args.tp)
     else:
-       evaluate(args.o, data_loading_comb, args.tp)
+        evaluate(args.o, data_loading_comb, args.tp)
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -70,6 +84,7 @@ def main():
     learning_parser.add_argument('--p', '--parameters', required=False, type=str, help="Path to the JSON file of model's hyper-parameters")
     learning_parser.set_defaults(func=learn)
 
+    # Prediction phase
     predict_parser = sub_parsers.add_parser('predict')
     predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     predict_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
@@ -77,6 +92,7 @@ def main():
     predict_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
     predict_parser.set_defaults(func=predict)
 
+    # Evaluation phase
     eval_parser = sub_parsers.add_parser('eval')
     eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     eval_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")

@@ -189,7 +189,7 @@ def train(output_path: str, data_loading_funcs: dict):
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
     X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
     Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
-    print("Loaded train and test sets in %.2f min" % ((time()-load_data_t) / 60))
+    print("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
 
     print(f"Number of training samples: {len(X_id_train):,}")
     print(f"Number of validation samples: {len(X_id_valid):,}")

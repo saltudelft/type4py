@@ -63,7 +63,7 @@ def test(output_path: str, data_loading_funcs: dict):
     X_id_test, X_tok_test, X_type_test = data_loading_funcs['test'](output_path)
     X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
     Y_all_train, Y_all_valid, Y_all_test = data_loading_funcs['labels'](output_path)
-    print("Loaded train and test sets in %.2f min" % ((time()-load_data_t) / 60))
+    print("Loaded the dataset in %.2f min" % ((time()-load_data_t) / 60))
 
     print(f"Number of test samples: {len(X_id_test):,}")
 
