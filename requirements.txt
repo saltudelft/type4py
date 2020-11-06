@@ -1,7 +1,13 @@
+numpy
+tqdm
 joblib
 pandas
 asttokens
+astor
 docstring-parser
 scikit-learn
+nltk
 gensim
 annoy
+torch
+dpu_utils
