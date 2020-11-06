@@ -20,7 +20,7 @@ data_loading_ret = {'train': data_loaders.load_ret_train_data, 'valid': data_loa
                      'name': 'return'}
 
 def extract(args):
-    p = Pipeline(args.c, args.o)
+    p = Pipeline(args.c, args.o, args.d)
     p.run(args.w, args.l)
 
 def preprocess(args):
@@ -61,6 +61,7 @@ def main():
     extract_parser = sub_parsers.add_parser('extract')
     extract_parser.add_argument('--c', '--corpus', required=True, type=str, help="Path to the Python corpus or dataset")
     extract_parser.add_argument('--o', '--output', required=True, type=str, help="Path to store processed projects")
+    extract_parser.add_argument('--d', '--deduplicate', required=False, type=str, help="Path to duplicate files")
     extract_parser.add_argument('--w', '--workers', required=False, default=4, type=int, help="Number of workers to extract functions from the input corpus")
     extract_parser.add_argument('--l', '--limit', required=False, type=int, help="Limits the number of projects to be processed")
     extract_parser.set_defaults(func=extract)

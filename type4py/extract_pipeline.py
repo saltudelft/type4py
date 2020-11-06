@@ -1,14 +1,16 @@
 import os
 import pandas as pd
 from joblib import delayed
+from dpu_utils.utils.dataloading import load_jsonl_gz
 from type4py.utils import ParallelExecutor, filter_directory, list_files, read_file, mk_dir_not_exist, find_repos_list
 from type4py.preprocess import NLPreprocessor
 from type4py.extract import Extractor, ParseError, parse_df
 import traceback
+import random
 
 class Pipeline:
 
-    def __init__(self, repos_dir, output_dir):
+    def __init__(self, repos_dir, output_dir, dups_files_path=None):
         self.repos_dir = repos_dir
         self.output_dir = output_dir
         self.avl_types_dir = None
@@ -16,6 +18,14 @@ class Pipeline:
         self.extractor = Extractor()
 
         self.__make_output_dirs()
+
+        if dups_files_path is not None:
+            clusters_rand_files = [l.pop(random.randrange(len(l))) for l in load_jsonl_gz(dups_files_path)]
+            self.duplicate_files = [f for l in load_jsonl_gz(dups_files_path) for f in l]
+            self.duplicate_files = set(self.duplicate_files).difference(set(clusters_rand_files))
+            self.is_file_duplicate = lambda x: True if x in self.duplicate_files else False
+        else:
+            self.is_file_duplicate = lambda x: False
 
     def __make_output_dirs(self):
         mk_dir_not_exist(self.output_dir)
@@ -75,7 +85,6 @@ class Pipeline:
         """
         Run the pipeline (clone, filter, extract, remove) for all given projects
         """
-
         repos_list = find_repos_list(self.repos_dir) if no_proj_limit is None else find_repos_list(self.repos_dir)[:no_proj_limit]
         ParallelExecutor(n_jobs=jobs)(total=len(repos_list))(
             delayed(self.process_project)(i, project) for i, project in enumerate(repos_list))
@@ -100,20 +109,23 @@ class Pipeline:
             extracted_functions = {}
             extracted_avl_types = []
             for filename in list_files(filtered_project_directory):
-                try:
-                    functions, avl_types = self.extractor.extract(read_file(filename))
-                    extracted_functions[filename] = (functions, avl_types)
-                    extracted_avl_types = extracted_avl_types + avl_types
-                except ParseError:
-                    print(f"Could not parse file {filename}")
-                except UnicodeDecodeError:
-                    print(f"Could not read file {filename}")
-                except:
-                    # Other unexpected exceptions; Failure of single file should not
-                    # fail the entire project processing.
-                    # TODO: A better workaround would be to have a specialized exception thrown
-                    # by the extractor, so that this exception is specialized.
-                    print(f"Could not process file {filename}")
+                if not self.is_file_duplicate(filename):
+                    try:
+                        functions, avl_types = self.extractor.extract(read_file(filename))
+                        extracted_functions[filename] = (functions, avl_types)
+                        extracted_avl_types = extracted_avl_types + avl_types
+                    except ParseError:
+                        print(f"Could not parse file {filename}")
+                    except UnicodeDecodeError:
+                        print(f"Could not read file {filename}")
+                    except:
+                        # Other unexpected exceptions; Failure of single file should not
+                        # fail the entire project processing.
+                        # TODO: A better workaround would be to have a specialized exception thrown
+                        # by the extractor, so that this exception is specialized.
+                        print(f"Could not process file {filename}")
+                else:
+                    print(f"Ignore duplicate file {filename}")
 
             print(f'Preprocessing for {project_id}...')
             preprocessed_functions = {}
