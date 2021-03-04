@@ -2,6 +2,7 @@ from type4py.data_loaders import select_data, TripletDataset
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
 from type4py.utils import load_json
+from type4py import logger
 from torch.utils.data import DataLoader
 from typing import Tuple
 from collections import Counter
@@ -18,7 +19,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def load_model_params(params_file_path: str=None) -> dict:
 
     if params_file_path is not None:
-        print("Loading user-provided hyper-parameters for the Type4Py model...")
+        logger.info("Loading user-provided hyper-parameters for the Type4Py model...")
         return load_json(params_file_path)
     else:
         return {'epochs': 10, 'lr': 0.002, 'dr': 0.25, 'output_size': 4096,
@@ -125,13 +126,13 @@ def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader:
 
             total_loss += loss.item()
          
-        print(f"epoch: {epoch} train loss: {total_loss} in {(time() - epoch_start_t) / 60.0:.2f} min.")
+        logger.info(f"epoch: {epoch} train loss: {total_loss} in {(time() - epoch_start_t) / 60.0:.2f} min.")
 
         if epoch % 5 == 0:
             valid_start = time()
             valid_loss, valid_all_acc = compute_validation_loss_dsl(model, criterion, train_data_loader, valid_data_loader,
                                                                     predict_type_embed, common_types)
-            print(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
+            logger.info(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
             #torch.save(model.module, join(model_path, f"{model.module.tw_embed_model.__class__.__name__}_{train_data_loader.dataset.dataset_name}_e{epoch}_{datetime.now().strftime('%b%d_%H-%M-%S')}.pt"))
 
 def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_loader: DataLoader,
@@ -178,23 +179,23 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
                                                                 annoy_index, 10)
         acc_all, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
                                                            common_types, 10)
-        print("E-All: %.2f | E-Comm: %.2f | E-rare: %.2f" % (acc_all, acc_common, acc_rare))
+        logger.info("E-All: %.2f | E-Comm: %.2f | E-rare: %.2f" % (acc_all, acc_common, acc_rare))
 
     return valid_total_loss, acc_all
 
 def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     
-    print(f"Training Type4Py model for {data_loading_funcs['name']} prediction task")
-    print(f"***********************************************************************")
+    logger.info(f"Training Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"***********************************************************************")
     # Loading dataset
     load_data_t = time()
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
     X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
     Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
-    print("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
+    logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
 
-    print(f"Number of training samples: {len(X_id_train):,}")
-    print(f"Number of validation samples: {len(X_id_valid):,}")
+    logger.info(f"Number of training samples: {len(X_id_train):,}")
+    logger.info(f"Number of validation samples: {len(X_id_valid):,}")
 
     # Select data points which has at least frequency of 3 or more (for similarity learning)
     train_mask = select_data(Y_all_train, 3)
@@ -207,7 +208,7 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
 
     count_types = Counter(Y_all_train.data.numpy())
     common_types = [t.item() for t in Y_all_train if count_types[t.item()] >= 100]
-    print("Percentage of common types: %.2f%%" % (len(common_types) / Y_all_train.shape[0]*100.0))
+    logger.info("Percentage of common types: %.2f%%" % (len(common_types) / Y_all_train.shape[0]*100.0))
     common_types = set(common_types)
 
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
@@ -238,7 +239,7 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     train_t = time()
     train_loop_dsl(model, criterion, optimizer, train_loader, valid_loader, model_params['lr'],
                    model_params['epochs'], common_types, None)
-    print("Training finished in %.2f min" % ((time()-train_t) / 60))
+    logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
     torch.save(model.module if torch.cuda.device_count() > 1 else model, join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
 
