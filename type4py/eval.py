@@ -5,6 +5,8 @@ import pickle
 import re
 import numpy as np
 
+logger.name = __name__
+
 def eval_type_embed(y_pred: np.array, y_true: np.array, common_types: set, top_n: int=10):
 
     all_common_types = 0

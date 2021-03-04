@@ -51,6 +51,7 @@ def predict(args):
         test(args.o, data_loading_comb)
 
 def eval(args):
+    setup_logs_file(args.o, "eval")
     if args.a:
         evaluate(args.o, data_loading_param, args.tp)
     elif args.r:
