@@ -1,6 +1,11 @@
 # Type4Py: Deep Similarity Learning-Based Type Inference for Python
 This repository contains the implementation of Type4Py and instructions for re-producing the results of the paper.
 
+- [Dataset](#dataset)
+- [Installation Guide](#installation-guide)
+- [Usage Guide](#usage-guide)
+- [Citing Type4Py](#citing-type4py)
+
 # Dataset
 Type4Py dataset can be downloaded from [here](https://surfdrive.surf.nl/files/index.php/s/KobWgHFgXUgW4rA). It contains around 4,910 Python projects from GitHub, which were cloned in October 2019.
 
@@ -72,3 +77,14 @@ Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
 - `--c`: Evaluates the model for the combined prediction task. Use `--a` and `--r` for argument and return type prediction tasks, respectively. Note that this argument should be the same as the one that was used in the learning step.
 - `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
+
+# Citing Type4Py
+
+```
+@article{mir2021type4py,
+  title={Type4Py: Deep Similarity Learning-Based Type Inference for Python},
+  author={Mir, Amir M and Latoskinas, Evaldas and Proksch, Sebastian and Gousios, Georgios},
+  journal={arXiv preprint arXiv:2101.04470},
+  year={2021}
+}
+```
