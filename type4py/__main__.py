@@ -2,6 +2,7 @@ from type4py.extract_pipeline import Pipeline
 from type4py.preprocess import preprocess_ext_fns
 from type4py.vectorize import vectorize_args_ret
 from type4py import data_loaders
+from type4py.utils import setup_logs_file
 from type4py.learn import train
 from type4py.predict import test
 from type4py.eval import evaluate
@@ -24,6 +25,7 @@ def extract(args):
     p.run(args.w, args.l)
 
 def preprocess(args):
+    setup_logs_file(args.o, "preprocess")
     preprocess_ext_fns(args.o)
 
 def vectorize(args):

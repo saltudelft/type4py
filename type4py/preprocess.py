@@ -14,6 +14,7 @@ import nltk
 import pandas as pd
 import numpy as np
 
+logger.name = __name__
 
 # Precompile often used regex
 first_cap_regex = re.compile('(.)([A-Z][a-z]+)')
