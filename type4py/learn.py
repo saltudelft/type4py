@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch
 import pickle
 
+logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def load_model_params(params_file_path: str=None) -> dict:

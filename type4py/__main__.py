@@ -33,6 +33,7 @@ def vectorize(args):
     vectorize_args_ret(args.o)
 
 def learn(args):
+    setup_logs_file(args.o, "learn")
     if args.a:
         train(args.o, data_loading_param, args.p)
     elif args.r:
