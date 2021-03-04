@@ -2,6 +2,7 @@ from functools import reduce
 from typing import Optional
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from type4py import logger
 from type4py.extract import Function
 from ast import literal_eval
 from collections import Counter
@@ -147,7 +148,7 @@ class SentenceProcessor:
                 else:
                     lemmatized.append(lemmatizer.lemmatize(token))
             except UnicodeDecodeError:
-                print(f'Lemmatization failed for {token}, tag: {tag}, word pos: {word_pos}')
+                logger.error(f'Lemmatization failed for {token}, tag: {tag}, word pos: {word_pos}')
 
         return ' '.join(lemmatized)
 
@@ -240,10 +241,10 @@ def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', '
     """
 
     df_len = len(df)
-    print(f"Functions before dropping on __*__ methods {len(df)}")
+    logger.info(f"Functions before dropping on __*__ methods {len(df)}")
     df = df[~df['name'].isin(funcs)]
-    print(f"Functions after dropping on __*__ methods {len(df)}")
-    print(f"Filtered out {df_len - len(df)} functions.")
+    logger.info(f"Functions after dropping on __*__ methods {len(df)}")
+    logger.info(f"Filtered out {df_len - len(df)} functions.")
 
     return df
 
@@ -280,18 +281,18 @@ def filter_return_dp(df: pd.DataFrame) -> pd.DataFrame:
     Filters return datapoints based on a set of criteria.
     """
 
-    print(f"Functions before dropping on return type {len(df)}")
+    logger.info(f"Functions before dropping on return type {len(df)}")
     df = df.dropna(subset=['return_type'])
-    print(f"Functions after dropping on return type {len(df)}")
+    logger.info(f"Functions after dropping on return type {len(df)}")
 
-    print(f"Functions before dropping nan, None, Any return type {len(df)}")
+    logger.info(f"Functions before dropping nan, None, Any return type {len(df)}")
     to_drop = np.invert((df['return_type'] == 'nan') | (df['return_type'] == 'None') | (df['return_type'] == 'Any'))
     df = df[to_drop]
-    print(f"Functions after dropping nan return type {len(df)}")
+    logger.info(f"Functions after dropping nan return type {len(df)}")
 
-    print(f"Functions before dropping on empty return expression {len(df)}")
+    logger.info(f"Functions before dropping on empty return expression {len(df)}")
     df = df[df['return_expr'].apply(lambda x: len(literal_eval(x))) > 0]
-    print(f"Functions after dropping on empty return expression {len(df)}")
+    logger.info(f"Functions after dropping on empty return expression {len(df)}")
 
     return df
 
@@ -318,8 +319,8 @@ def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame,
             columns=['enc', 'type', 'count']
         ).to_csv(os.path.join(output_dir, "_most_frequent_all_types.csv"), index=False)
 
-    print(f"Total number of extracted types: {len(all_types):,}")
-    print(f"Total number of unique types: {len(unq_types):,}")
+    logger.info(f"Total number of extracted types: {len(all_types):,}")
+    logger.info(f"Total number of unique types: {len(unq_types):,}")
 
     return df_ret, df_params, le_all
 
@@ -379,11 +380,11 @@ def preprocess_ext_fns(output_dir: str):
                                                  columns=['file']), test_size=0.1)
 
     df_train = processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]
-    print(f"Number of functions in train set: {df_train.shape[0]:,}")
+    logger.info(f"Number of functions in train set: {df_train.shape[0]:,}")
     df_valid = processed_proj_fns[processed_proj_fns['file'].isin(valid_files.to_numpy().flatten())]
-    print(f"Number of functions in validation set: {df_valid.shape[0]:,}")
+    logger.info(f"Number of functions in validation set: {df_valid.shape[0]:,}")
     df_test = processed_proj_fns[processed_proj_fns['file'].isin(test_files.to_numpy().flatten())]
-    print(f"Number of functions in test set: {df_test.shape[0]:,}")
+    logger.info(f"Number of functions in test set: {df_test.shape[0]:,}")
 
     assert list(set(df_train['file'].tolist()).intersection(set(df_test['file'].tolist()))) == []
     assert list(set(df_train['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
@@ -444,7 +445,7 @@ def preprocess_ext_fns(output_dir: str):
     assert list(set(df_ret_test['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
 
     # Store the dataframes and the label encoders
-    print("Saving preprocessed functions on the disk...")
+    logger.info("Saving preprocessed functions on the disk...")
     with open(os.path.join(output_dir, "label_encoder_all.pkl"), 'wb') as file:
         pickle.dump(le_all, file)
     
