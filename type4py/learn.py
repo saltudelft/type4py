@@ -195,8 +195,8 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
     logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
 
-    logger.info(f"Number of training samples: {len(X_id_train):,}")
-    logger.info(f"Number of validation samples: {len(X_id_valid):,}")
+    logger.info(f"No. of training samples: {len(X_id_train):,}")
+    logger.info(f"No. of validation samples: {len(X_id_valid):,}")
 
     # Select data points which has at least frequency of 3 or more (for similarity learning)
     train_mask = select_data(Y_all_train, 3)
@@ -242,5 +242,6 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
                    model_params['epochs'], common_types, None)
     logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
+    # Saving the model
+    logger.info("Saved the trained Type4Py model for %s prediction on the disk" % data_loading_funcs['name'])
     torch.save(model.module if torch.cuda.device_count() > 1 else model, join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
-
