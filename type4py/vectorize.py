@@ -8,6 +8,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 
+logger.name = __name__
 tqdm.pandas()
 
 W2V_VEC_LENGTH = 100

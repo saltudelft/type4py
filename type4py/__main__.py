@@ -29,6 +29,7 @@ def preprocess(args):
     preprocess_ext_fns(args.o)
 
 def vectorize(args):
+    setup_logs_file(args.o, "vectorize")
     vectorize_args_ret(args.o)
 
 def learn(args):
