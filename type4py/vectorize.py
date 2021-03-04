@@ -59,7 +59,7 @@ class W2VEmbedding:
 
         w2v_model.build_vocab(sentences=corpus_iterator)
 
-        logger.info('Time to build vocab: {} mins'.format(round((time() - t) / 60, 2)))
+        logger.info('Built W2V vocab in {} mins'.format(round((time() - t) / 60, 2)))
 
         t = time()
 
@@ -68,7 +68,7 @@ class W2VEmbedding:
                         epochs=20,
                         report_delay=1)
 
-        logger.info('Time to train model: {} mins'.format(round((time() - t) / 60, 2)))
+        logger.info('Built W2V model in {} mins'.format(round((time() - t) / 60, 2)))
 
         w2v_model.save(model_path_name)
 
@@ -252,14 +252,14 @@ def vectorize_args_ret(output_path: str):
     param_df = pd.read_csv(os.path.join(output_path, "_ml_param_train.csv"), na_filter=False)
     return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_train.csv"), na_filter=False)
 
-    logger.info(f"Number of parameters types: {param_df.shape[0]:,}")
-    logger.info(f"Number of returns types: {return_df.shape[0]:,}")
+    logger.info(f"No. of parameters types in train set: {param_df.shape[0]:,}")
+    logger.info(f"No. of returns types in train set: {return_df.shape[0]:,}")
 
     embedder = W2VEmbedding(param_df, return_df, os.path.join(output_path, 'w2v_token_model.bin'))
     embedder.train_token_model()
 
     w2v_token_model = Word2Vec.load(os.path.join(output_path, 'w2v_token_model.bin'))
-    logger.info(f"W2V token model vocab size : {len(w2v_token_model.wv.vocab):,}")
+    logger.info(f"W2V model's vocab size : {len(w2v_token_model.wv.vocab):,}")
 
     # Create dirs for vectors
     mk_dir_not_exist(os.path.join(output_path, "vectors"))
