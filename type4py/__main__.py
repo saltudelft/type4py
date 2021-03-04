@@ -42,6 +42,7 @@ def learn(args):
         train(args.o, data_loading_comb, args.p)
 
 def predict(args):
+    setup_logs_file(args.o, "predict")
     if args.a:
         test(args.o, data_loading_param)
     elif args.r:

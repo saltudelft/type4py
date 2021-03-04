@@ -11,6 +11,7 @@ from annoy import AnnoyIndex
 import numpy as np
 import torch
 
+logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
