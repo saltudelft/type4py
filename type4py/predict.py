@@ -69,7 +69,7 @@ def test(output_path: str, data_loading_funcs: dict):
     Y_all_train, Y_all_valid, Y_all_test = data_loading_funcs['labels'](output_path)
     logger.info("Loaded the dataset in %.2f min" % ((time()-load_data_t) / 60))
 
-    logger.info(f"Number of test samples: {len(X_id_test):,}")
+    logger.info(f"No. of test samples: {len(X_id_test):,}")
 
     # Select data points which has at least frequency of 3 or more (for similary learning)
     train_mask = select_data(Y_all_train, 3)
