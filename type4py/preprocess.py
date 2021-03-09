@@ -4,6 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from type4py import logger
 from type4py.extract import Function
+from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns
+from libsa4py.utils import list_files
 from ast import literal_eval
 from collections import Counter
 from tqdm import tqdm
@@ -372,7 +374,9 @@ def preprocess_ext_fns(output_dir: str):
     Applies preprocessing steps to the extracted functions
     """
 
-    processed_proj_fns = pd.read_csv(os.path.join(output_dir, "_all_data.csv"), low_memory=False)
+    logger.info("Merging JSON projects and loading functions' Dataframe")
+    create_dataframe_fns(output_dir, merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json")))
+    processed_proj_fns = pd.read_csv(os.path.join(output_dir, "all_fns.csv"), low_memory=False)
 
     # Split the processed files into train, validation and test sets
     train_files, test_files = train_test_split(pd.DataFrame(processed_proj_fns['file'].unique(), columns=['file']),
