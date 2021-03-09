@@ -11,3 +11,4 @@ gensim
 annoy
 torch
 dpu_utils
+libsa4py
