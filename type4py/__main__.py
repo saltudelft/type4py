@@ -2,6 +2,7 @@ from type4py.extract_pipeline import Pipeline
 from type4py.preprocess import preprocess_ext_fns
 from type4py.vectorize import vectorize_args_ret
 from type4py import data_loaders
+from type4py.utils import setup_logs_file
 from type4py.learn import train
 from type4py.predict import test
 from type4py.eval import evaluate
@@ -24,12 +25,15 @@ def extract(args):
     p.run(args.w, args.l)
 
 def preprocess(args):
+    setup_logs_file(args.o, "preprocess")
     preprocess_ext_fns(args.o)
 
 def vectorize(args):
+    setup_logs_file(args.o, "vectorize")
     vectorize_args_ret(args.o)
 
 def learn(args):
+    setup_logs_file(args.o, "learn")
     if args.a:
         train(args.o, data_loading_param, args.p)
     elif args.r:
@@ -38,6 +42,7 @@ def learn(args):
         train(args.o, data_loading_comb, args.p)
 
 def predict(args):
+    setup_logs_file(args.o, "predict")
     if args.a:
         test(args.o, data_loading_param)
     elif args.r:
@@ -46,6 +51,7 @@ def predict(args):
         test(args.o, data_loading_comb)
 
 def eval(args):
+    setup_logs_file(args.o, "eval")
     if args.a:
         evaluate(args.o, data_loading_param, args.tp)
     elif args.r:

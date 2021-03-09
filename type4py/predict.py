@@ -1,5 +1,6 @@
 from type4py.data_loaders import select_data, TripletDataset
 from type4py.learn import load_model_params, TripletModel, create_knn_index
+from type4py import logger
 from typing import Tuple
 from collections import defaultdict
 from os.path import join
@@ -10,6 +11,7 @@ from annoy import AnnoyIndex
 import numpy as np
 import torch
 
+logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
@@ -57,17 +59,17 @@ def compute_type_embed_batch(model: TripletModel, data_loader: DataLoader) -> Tu
 
 def test(output_path: str, data_loading_funcs: dict):
 
-    print(f"Testing Type4Py model for {data_loading_funcs['name']} prediction task")
-    print(f"**********************************************************************")
+    logger.info(f"Testing Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"**********************************************************************")
     # Loading dataset
     load_data_t = time()
     X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
     X_id_test, X_tok_test, X_type_test = data_loading_funcs['test'](output_path)
     X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
     Y_all_train, Y_all_valid, Y_all_test = data_loading_funcs['labels'](output_path)
-    print("Loaded the dataset in %.2f min" % ((time()-load_data_t) / 60))
+    logger.info("Loaded the dataset in %.2f min" % ((time()-load_data_t) / 60))
 
-    print(f"Number of test samples: {len(X_id_test):,}")
+    logger.info(f"No. of test samples: {len(X_id_test):,}")
 
     # Select data points which has at least frequency of 3 or more (for similary learning)
     train_mask = select_data(Y_all_train, 3)
@@ -95,14 +97,17 @@ def test(output_path: str, data_loading_funcs: dict):
                               train_mode=False), batch_size=model_params['batches'])
 
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
+    logger.info("Loaded the pre-trained Type4Py model")
 
     # Create Type Clusters
     train_type_embed, embed_train_labels = compute_type_embed_batch(model.model, train_loader)
     valid_type_embed, embed_valid_labels = compute_type_embed_batch(model.model, valid_loader)
     test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_loader)
     annoy_index = create_knn_index(train_type_embed, valid_type_embed, train_type_embed.shape[1], 20)
+    logger.info("Created type clusters")
 
     # Perform KNN search and predict
+    logger.info("Performing KNN search")
     pred_test_embed, pred_test_score = predict_type_embed(test_type_embed,
                                                           np.concatenate((embed_train_labels, embed_valid_labels)),
                                                           annoy_index, model_params['k'])
@@ -111,3 +116,4 @@ def test(output_path: str, data_loading_funcs: dict):
             pred_test_embed)
     np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"),
             embed_test_labels)
+    logger.info("Saved the Type4Py model's predictions on the disk")

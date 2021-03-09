@@ -1,8 +1,11 @@
+from type4py import logger
 from os.path import join
 from sklearn.metrics import classification_report
 import pickle
 import re
 import numpy as np
+
+logger.name = __name__
 
 def eval_type_embed(y_pred: np.array, y_true: np.array, common_types: set, top_n: int=10):
 
@@ -94,8 +97,8 @@ def eval_pred_dsl(y_true, y_pred, top_n=10):
 
 def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
 
-    print(f"Evaluating Type4Py model for {data_loading_funcs['name']} prediction task")
-    print(f"*************************************************************************")
+    logger.info(f"Evaluating Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"*************************************************************************")
     # Loading label encoder andd common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     common_types = pickle.load(open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'rb'))
@@ -107,9 +110,9 @@ def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
                                                                      embed_test_labels,
                                                                      common_types, top_n)
 
-    print("Type4Py - Exact match - all: %.2f%%" % acc_all)
-    print("Type4Py - Exact match - common: %.2f%%" % acc_common)
-    print("Type4Py - Exact match - rare: %.2f%%" % acc_rare)
+    logger.info("Type4Py - Exact match - all: %.2f%%" % acc_all)
+    logger.info("Type4Py - Exact match - common: %.2f%%" % acc_common)
+    logger.info("Type4Py - Exact match - rare: %.2f%%" % acc_rare)
 
     pred_test_embed_inv = np.array([le_all.inverse_transform(pred) for pred in pred_test_embed])
     embed_test_labels_inv = np.array([le_all.inverse_transform([t])[0] for t in embed_test_labels])
@@ -119,12 +122,12 @@ def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
                                                                             embed_test_labels_inv,
                                                                             common_types_inv, top_n)
 
-    print("Type4Py - Parametric match - all: %.2f%%" % acc_all_param)
-    print("Type4Py - Parametric match - common: %.2f%%" % acc_common_param)
-    print("Type4Py - Parametric match - rare: %.2f%%" % acc_rare_param)
+    logger.info("Type4Py - Parametric match - all: %.2f%%" % acc_all_param)
+    logger.info("Type4Py - Parametric match - common: %.2f%%" % acc_common_param)
+    logger.info("Type4Py - Parametric match - rare: %.2f%%" % acc_rare_param)
 
     res = eval_pred_dsl(embed_test_labels, pred_test_embed, top_n=top_n)
 
-    print("F1-score: %.2f | Recall: %.2f | Precision: %.2f" % (res['f1-score']*100,
+    logger.info("F1-score: %.2f | Recall: %.2f | Precision: %.2f" % (res['f1-score']*100,
                                                                res['recall']*100,
                                                                res['precision']*100))

@@ -1,12 +1,14 @@
 from gensim.models import Word2Vec
 from time import time
 from tqdm import tqdm
+from type4py import logger
 from type4py.utils import mk_dir_not_exist
 import os
 import multiprocessing
 import numpy as np
 import pandas as pd
 
+logger.name = __name__
 tqdm.pandas()
 
 W2V_VEC_LENGTH = 100
@@ -57,7 +59,7 @@ class W2VEmbedding:
 
         w2v_model.build_vocab(sentences=corpus_iterator)
 
-        print('Time to build vocab: {} mins'.format(round((time() - t) / 60, 2)))
+        logger.info('Built W2V vocab in {} mins'.format(round((time() - t) / 60, 2)))
 
         t = time()
 
@@ -66,7 +68,7 @@ class W2VEmbedding:
                         epochs=20,
                         report_delay=1)
 
-        print('Time to train model: {} mins'.format(round((time() - t) / 60, 2)))
+        logger.info('Built W2V model in {} mins'.format(round((time() - t) / 60, 2)))
 
         w2v_model.save(model_path_name)
 
@@ -196,7 +198,7 @@ def process_datapoints(f_name, output_path, embedding_type, type, trans_func, ca
 
         return datapoints_X
     else:
-        print(f"file {embedding_type + type + '_datapoints_x'} exists!")
+        logger.warn(f"file {embedding_type + type + '_datapoints_x'} exists!")
         return
 
 def type_vector(size, index):
@@ -225,8 +227,8 @@ def gen_aval_types_datapoints(df_params, df_ret, set_type, output_path, cached_f
 
         return aval_types_params, aval_types_ret
     else:
-        print(f'file params_{set_type}_aval_types_dp.npy exists!')
-        print(f'file ret_{set_type}_aval_types_dp.npy exists!')
+        logger.warn(f'file params_{set_type}_aval_types_dp.npy exists!')
+        logger.warn(f'file ret_{set_type}_aval_types_dp.npy exists!')
         return None, None
 
 def gen_labels_vector(params_df: pd.DataFrame, returns_df: pd.DataFrame, set_type: str, output_path: str):
@@ -250,14 +252,14 @@ def vectorize_args_ret(output_path: str):
     param_df = pd.read_csv(os.path.join(output_path, "_ml_param_train.csv"), na_filter=False)
     return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_train.csv"), na_filter=False)
 
-    print(f"Number of parameters types: {param_df.shape[0]:,}")
-    print(f"Number of returns types: {return_df.shape[0]:,}")
+    logger.info(f"No. of parameters types in train set: {param_df.shape[0]:,}")
+    logger.info(f"No. of returns types in train set: {return_df.shape[0]:,}")
 
     embedder = W2VEmbedding(param_df, return_df, os.path.join(output_path, 'w2v_token_model.bin'))
     embedder.train_token_model()
 
     w2v_token_model = Word2Vec.load(os.path.join(output_path, 'w2v_token_model.bin'))
-    print(f"W2V token model vocab size : {len(w2v_token_model.wv.vocab):,}")
+    logger.info(f"W2V model's vocab size : {len(w2v_token_model.wv.vocab):,}")
 
     # Create dirs for vectors
     mk_dir_not_exist(os.path.join(output_path, "vectors"))
@@ -272,7 +274,7 @@ def vectorize_args_ret(output_path: str):
     token_trans_func_param = lambda row: TokenSequence(w2v_token_model, tks_seq_len[0], tks_seq_len[1], row.arg_occur, None)
 
     # Identifiers
-    print("[arg][identifiers] Generating vectors")
+    logger.info("[arg][identifiers] Generating vectors")
     process_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
                        os.path.join(output_path, "vectors", "train"),
                        'identifiers_', 'param_train', id_trans_func_param)
@@ -284,7 +286,7 @@ def vectorize_args_ret(output_path: str):
                        'identifiers_', 'param_test', id_trans_func_param)
     
     # Tokens
-    print("[arg][code tokens] Generating vectors")
+    logger.info("[arg][code tokens] Generating vectors")
     process_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
                        os.path.join(output_path, "vectors", "train"),
                        'tokens_', 'param_train', token_trans_func_param)
@@ -300,7 +302,7 @@ def vectorize_args_ret(output_path: str):
     token_trans_func_ret = lambda row: TokenSequence(w2v_token_model, tks_seq_len[0], tks_seq_len[1], None, row.return_expr_str)
 
     # Identifiers
-    print("[ret][identifiers] Generating vectors")
+    logger.info("[ret][identifiers] Generating vectors")
     process_datapoints(os.path.join(output_path, "_ml_ret_train.csv"),
                        os.path.join(output_path, "vectors", "train"),
                        'identifiers_', 'ret_train', id_trans_func_ret)
@@ -312,7 +314,7 @@ def vectorize_args_ret(output_path: str):
                        'identifiers_', 'ret_test', id_trans_func_ret)
 
     # Tokens
-    print("[ret][code tokens] Generating vectors")
+    logger.info("[ret][code tokens] Generating vectors")
     process_datapoints(os.path.join(output_path, "_ml_ret_train.csv"),
                        os.path.join(output_path, "vectors", "train"),
                        'tokens_', 'ret_train', token_trans_func_ret)
@@ -324,7 +326,7 @@ def vectorize_args_ret(output_path: str):
                        'tokens_', 'ret_test', token_trans_func_ret)
 
     # Generate data points for visible type hints
-    print("[visible type hints] Generating vectors")
+    logger.info("[visible type hints] Generating vectors")
     gen_aval_types_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
                               os.path.join(output_path, "_ml_ret_train.csv"),
                               'train', os.path.join(output_path, "vectors", "train"))
@@ -336,7 +338,7 @@ def vectorize_args_ret(output_path: str):
                               'test', os.path.join(output_path, "vectors", "test"))
 
     # a flattened vector for labels
-    print("[true labels] Generating vectors")
+    logger.info("[true labels] Generating vectors")
     gen_labels_vector(os.path.join(output_path, "_ml_param_train.csv"),
                       os.path.join(output_path, "_ml_ret_train.csv"),
                       'train', os.path.join(output_path, "vectors", "train"))

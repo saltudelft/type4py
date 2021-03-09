@@ -1,7 +1,9 @@
+from type4py import logger
 from typing import List
 from tqdm import tqdm
 from joblib import Parallel
 import time
+import logging
 import os
 import json
 
@@ -85,3 +87,10 @@ def ParallelExecutor(use_bar='tqdm', **joblib_args):
         return tmp
 
     return aprun
+
+def setup_logs_file(log_dir: str, module_name: str):
+    mk_dir_not_exist(os.path.join(log_dir, "logs"))
+    logger_fh = logging.FileHandler(filename=os.path.join(log_dir, "logs", module_name + ".log"))
+    logger_fh.setLevel(logger.level)
+    logger_fh.setFormatter(logging.Formatter(fmt='[%(asctime)s][%(name)s][%(levelname)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(logger_fh)
