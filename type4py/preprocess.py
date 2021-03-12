@@ -272,7 +272,7 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
                 continue
 
             arg_descr = literal_eval(row['arg_descrs'])[p_i]
-            arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])]
+            arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])[p_i]]
             other_args = " ".join([a for a in literal_eval(row['arg_names']) if a != 'self'])
             arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur])
 
@@ -327,7 +327,7 @@ def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame,
 
     return df_ret, df_params, le_all
 
-def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024):
+def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024) -> pd.DataFrame:
     """
     It generates top n most frequent available types
     :param top_n:
@@ -410,7 +410,7 @@ def preprocess_ext_fns(output_dir: str):
     # Filters trivial functions such as `__str__` and `__len__` 
     processed_proj_fns = filter_functions(processed_proj_fns)
     
-    # Extracts informations for functions' arguments
+    # Extracts type hints for functions' arguments
     processed_proj_fns_params = gen_argument_df(processed_proj_fns)
 
     # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
@@ -428,8 +428,8 @@ def preprocess_ext_fns(output_dir: str):
     processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
                          'return_expr'])
 
-    # Find most fequent visible type hints
-    df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "ext_visible_types"), output_dir)
+    # Find most frequent visible type hints
+    df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir)
     processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns, df_types)
 
     # Split parameters and returns type dataset by file into a train and test sets
