@@ -1,11 +1,7 @@
-from type4py.extract_pipeline import Pipeline
-from type4py.preprocess import preprocess_ext_fns
-from type4py.vectorize import vectorize_args_ret
 from type4py import data_loaders
 from type4py.utils import setup_logs_file
-from type4py.learn import train
-from type4py.predict import test
-from type4py.eval import evaluate
+from libsa4py.cst_pipeline import Pipeline
+from libsa4py.utils import find_repos_list
 import argparse
 
 data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': data_loaders.load_combined_valid_data,
@@ -21,18 +17,21 @@ data_loading_ret = {'train': data_loaders.load_ret_train_data, 'valid': data_loa
                      'name': 'return'}
 
 def extract(args):
-    p = Pipeline(args.c, args.o, args.d)
-    p.run(args.w, args.l)
+    p = Pipeline(args.c, args.o, True, False, args.d)
+    p.run(find_repos_list(args.c), args.w)
 
 def preprocess(args):
+    from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
     preprocess_ext_fns(args.o)
 
 def vectorize(args):
+    from type4py.vectorize import vectorize_args_ret
     setup_logs_file(args.o, "vectorize")
     vectorize_args_ret(args.o)
 
 def learn(args):
+    from type4py.learn import train
     setup_logs_file(args.o, "learn")
     if args.a:
         train(args.o, data_loading_param, args.p)
@@ -42,6 +41,7 @@ def learn(args):
         train(args.o, data_loading_comb, args.p)
 
 def predict(args):
+    from type4py.predict import test
     setup_logs_file(args.o, "predict")
     if args.a:
         test(args.o, data_loading_param)
@@ -51,6 +51,7 @@ def predict(args):
         test(args.o, data_loading_comb)
 
 def eval(args):
+    from type4py.eval import evaluate
     setup_logs_file(args.o, "eval")
     if args.a:
         evaluate(args.o, data_loading_param, args.tp)
