@@ -31,7 +31,7 @@ setup(
     packages=['type4py'],
     python_requries='>=3.5',
     install_requires=['numpy', 'tqdm', 'joblib', 'pandas', 'asttokens', 'astor', 'docstring-parser',
-                      'scikit-learn', 'nltk', 'gensim', 'annoy', 'torch', 'dpu_utils', 'libsa4py'],
+                      'scikit-learn', 'gensim', 'annoy', 'torch', 'dpu_utils', 'libsa4py'],
     entry_points={
         'console_scripts': [
             'type4py = type4py.__main__:main',
