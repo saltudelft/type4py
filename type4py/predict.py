@@ -32,7 +32,7 @@ def predict_type_embed(types_embed_array: np.array, types_embed_labels: np.array
 
     pred_types_embed = []
     pred_types_score = []
-    for embed_vec in tqdm(types_embed_array, total=len(types_embed_array)):
+    for embed_vec in tqdm(types_embed_array, total=len(types_embed_array), desc="Finding KNNs & Prediction"):
         idx, dist = indexed_knn.get_nns_by_vector(embed_vec, k, include_distances=True)
         pred_idx_scores = compute_types_score(dist, idx, types_embed_labels)
         pred_types_embed.append([i for i, s in pred_idx_scores])
@@ -48,7 +48,7 @@ def compute_type_embed_batch(model: TripletModel, data_loader: DataLoader) -> Tu
     computed_embed_batches = []
     computed_embed_labels = []
 
-    for batch_i, (a, p, n) in enumerate(tqdm(data_loader, total=len(data_loader))):
+    for batch_i, (a, p, n) in enumerate(tqdm(data_loader, total=len(data_loader), desc="Computing Type Clusters")):
         model.eval()
         with torch.no_grad():
             output_a = model(*(s.to(DEVICE) for s in a[0]))
