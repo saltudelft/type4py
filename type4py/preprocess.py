@@ -1,9 +1,6 @@
-from functools import reduce
-from typing import Optional
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from type4py import logger
-from type4py.extract import Function
 from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns
 from libsa4py.utils import list_files
 from ast import literal_eval
@@ -12,7 +9,6 @@ from tqdm import tqdm
 import re
 import os
 import pickle
-import nltk
 import pandas as pd
 import numpy as np
 
@@ -22,170 +18,170 @@ logger.name = __name__
 first_cap_regex = re.compile('(.)([A-Z][a-z]+)')
 all_cap_regex = re.compile('([a-z0-9])([A-Z])')
 
-class NLPreprocessor:
-    @staticmethod
-    def preprocess(function: Function) -> Function:
-        """
-        Preprocess a function's comments and identifiers by removing punctuating, removing stopwords and lemmatization
-        """
+# class NLPreprocessor:
+#     @staticmethod
+#     def preprocess(function: Function) -> Function:
+#         """
+#         Preprocess a function's comments and identifiers by removing punctuating, removing stopwords and lemmatization
+#         """
+#
+#         return Function(
+#             name=NLPreprocessor.process_identifier(function.name),
+#             docstring=NLPreprocessor.process_sentence(function.docstring),
+#             func_descr=NLPreprocessor.process_sentence(function.func_descr),
+#             arg_names=[NLPreprocessor.process_identifier(arg_name) for arg_name in function.arg_names],
+#             arg_types=function.arg_types,
+#             arg_descrs=[NLPreprocessor.process_sentence(arg_descr) for arg_descr in function.arg_descrs],
+#             args_occur=[NLPreprocessor.process_sentence(args_occur) for args_occur in function.args_occur],
+#             return_type=function.return_type,
+#             return_expr=[NLPreprocessor.process_identifier(expr.replace('return ', '')) for expr in function.return_expr],
+#             return_descr=NLPreprocessor.process_sentence(function.return_descr),
+#             variables=[NLPreprocessor.process_identifier(var_name) for var_name in function.variables],
+#             variables_types=function.variables_types
+#         )
+#
+#     @staticmethod
+#     def process_sentence(sentence: str) -> Optional[str]:
+#         """
+#         Process a natural language sentence
+#         """
+#
+#         if sentence is None:
+#             return None
+#
+#         pipeline = [
+#             SentenceProcessor.replace_digits_with_space,
+#             SentenceProcessor.remove_punctuation_and_linebreaks,
+#             SentenceProcessor.tokenize,
+#             SentenceProcessor.lemmatize,
+#             SentenceProcessor.remove_stop_words
+#         ]
+#
+#         return reduce(lambda s, action: action(s), pipeline, sentence)
+#
+#     @staticmethod
+#     def process_identifier(sentence: str) -> str:
+#         """
+#         Process a sentence mainly consisting of identifiers
+#
+#         Similar to process_sentence, but does not remove stop words.
+#         """
+#         pipeline = [
+#             SentenceProcessor.replace_digits_with_space,
+#             SentenceProcessor.remove_punctuation_and_linebreaks,
+#             SentenceProcessor.tokenize,
+#             SentenceProcessor.lemmatize
+#         ]
+#
+#         return reduce(lambda s, action: action(s), pipeline, sentence)
 
-        return Function(
-            name=NLPreprocessor.process_identifier(function.name),
-            docstring=NLPreprocessor.process_sentence(function.docstring),
-            func_descr=NLPreprocessor.process_sentence(function.func_descr),
-            arg_names=[NLPreprocessor.process_identifier(arg_name) for arg_name in function.arg_names],
-            arg_types=function.arg_types,
-            arg_descrs=[NLPreprocessor.process_sentence(arg_descr) for arg_descr in function.arg_descrs],
-            args_occur=[NLPreprocessor.process_sentence(args_occur) for args_occur in function.args_occur],
-            return_type=function.return_type,
-            return_expr=[NLPreprocessor.process_identifier(expr.replace('return ', '')) for expr in function.return_expr],
-            return_descr=NLPreprocessor.process_sentence(function.return_descr),
-            variables=[NLPreprocessor.process_identifier(var_name) for var_name in function.variables],
-            variables_types=function.variables_types
-        )
 
-    @staticmethod
-    def process_sentence(sentence: str) -> Optional[str]:
-        """
-        Process a natural language sentence
-        """
-
-        if sentence is None:
-            return None
-
-        pipeline = [
-            SentenceProcessor.replace_digits_with_space,
-            SentenceProcessor.remove_punctuation_and_linebreaks,
-            SentenceProcessor.tokenize,
-            SentenceProcessor.lemmatize,
-            SentenceProcessor.remove_stop_words
-        ]
-
-        return reduce(lambda s, action: action(s), pipeline, sentence)
-
-    @staticmethod
-    def process_identifier(sentence: str) -> str:
-        """
-        Process a sentence mainly consisting of identifiers
-
-        Similar to process_sentence, but does not remove stop words.
-        """
-        pipeline = [
-            SentenceProcessor.replace_digits_with_space,
-            SentenceProcessor.remove_punctuation_and_linebreaks,
-            SentenceProcessor.tokenize,
-            SentenceProcessor.lemmatize
-        ]
-
-        return reduce(lambda s, action: action(s), pipeline, sentence)
-
-
-class SentenceProcessor:
-    """
-    A collection of static functions to process a natural language sentence
-    """
-
-    @staticmethod
-    def process_sentence(sentence: str) -> Optional[str]:
-        """
-        Process a natural language sentence
-        """
-
-        if sentence is None:
-            return None
-
-        pipeline = [
-            SentenceProcessor.replace_digits_with_space,
-            SentenceProcessor.remove_punctuation_and_linebreaks,
-            SentenceProcessor.tokenize,
-            SentenceProcessor.lemmatize,
-            SentenceProcessor.remove_stop_words
-        ]
-
-        return reduce(lambda s, action: action(s), pipeline, sentence)
-
-    @staticmethod
-    def replace_digits_with_space(sentence: str) -> str:
-        """
-        Replaces digits with a space
-        """
-        return re.sub('[0-9]+', ' ', sentence)
-
-    @staticmethod
-    def remove_punctuation_and_linebreaks(sentence: str) -> str:
-        """
-        Removes and replaces non-textual elements
-
-        Removes whitespace and all punctuations. Question marks and full stops are replaced with
-        a space. Full stops that are not followed by a space are also replaced with a space, e.g. object.property ->
-        object property.
-        """
-        return re.sub('[^A-Za-z0-9 ]+', ' ', sentence) \
-            .replace('\n', '') \
-            .replace('\r', '')
-
-    @staticmethod
-    def tokenize(sentence: str) -> str:
-        """
-        Tokenize camel case and snake case in a sentence and convert the sentence to lower case
-        """
-        sentence = sentence.replace("_", " ")
-        sentence = SentenceProcessor.convert_camelcase(sentence)
-
-        return sentence.lower()
-
-    @staticmethod
-    def lemmatize(sentence: str) -> str:
-        """
-        Lemmatize a sentence (e.g. running -> run)
-        """
-        words = [word for word in sentence.split(' ') if word != '']
-
-        lemmatized = []
-        for token, tag in nltk.pos_tag(words):
-            word_pos = SentenceProcessor.get_wordnet_pos(tag)
-            lemmatizer = nltk.WordNetLemmatizer()
-            try:
-                if word_pos != '':
-                    lemmatized.append(lemmatizer.lemmatize(token, pos=word_pos))
-                else:
-                    lemmatized.append(lemmatizer.lemmatize(token))
-            except UnicodeDecodeError:
-                logger.error(f'Lemmatization failed for {token}, tag: {tag}, word pos: {word_pos}')
-
-        return ' '.join(lemmatized)
-
-    @staticmethod
-    def remove_stop_words(sentence: str) -> str:
-        """
-        Remove stop words from a sentence
-        """
-        return ' '.join([word for word in sentence.split(' ') if word not in nltk.corpus.stopwords.words('english')])
-
-    @staticmethod
-    def get_wordnet_pos(treebank_tag: str) -> str:
-        """
-        Get the WordNet part-of-speech constant for the treebank tag
-        """
-        if treebank_tag.startswith('J'):
-            return nltk.corpus.wordnet.ADJ
-        elif treebank_tag.startswith('V'):
-            return nltk.corpus.wordnet.VERB
-        elif treebank_tag.startswith('N'):
-            return nltk.corpus.wordnet.NOUN
-        elif treebank_tag.startswith('R'):
-            return nltk.corpus.wordnet.ADV
-        else:
-            return ''
-
-    @staticmethod
-    def convert_camelcase(sentence: str) -> str:
-        """
-        Convert `camelCase` to `camel case`.
-        """
-        words = [all_cap_regex.sub(r'\1 \2', first_cap_regex.sub(r'\1 \2', word)) for word in sentence.split(" ")]
-
-        return ' '.join(words)
+# class SentenceProcessor:
+#     """
+#     A collection of static functions to process a natural language sentence
+#     """
+#
+#     @staticmethod
+#     def process_sentence(sentence: str) -> Optional[str]:
+#         """
+#         Process a natural language sentence
+#         """
+#
+#         if sentence is None:
+#             return None
+#
+#         pipeline = [
+#             SentenceProcessor.replace_digits_with_space,
+#             SentenceProcessor.remove_punctuation_and_linebreaks,
+#             SentenceProcessor.tokenize,
+#             SentenceProcessor.lemmatize,
+#             SentenceProcessor.remove_stop_words
+#         ]
+#
+#         return reduce(lambda s, action: action(s), pipeline, sentence)
+#
+#     @staticmethod
+#     def replace_digits_with_space(sentence: str) -> str:
+#         """
+#         Replaces digits with a space
+#         """
+#         return re.sub('[0-9]+', ' ', sentence)
+#
+#     @staticmethod
+#     def remove_punctuation_and_linebreaks(sentence: str) -> str:
+#         """
+#         Removes and replaces non-textual elements
+#
+#         Removes whitespace and all punctuations. Question marks and full stops are replaced with
+#         a space. Full stops that are not followed by a space are also replaced with a space, e.g. object.property ->
+#         object property.
+#         """
+#         return re.sub('[^A-Za-z0-9 ]+', ' ', sentence) \
+#             .replace('\n', '') \
+#             .replace('\r', '')
+#
+#     @staticmethod
+#     def tokenize(sentence: str) -> str:
+#         """
+#         Tokenize camel case and snake case in a sentence and convert the sentence to lower case
+#         """
+#         sentence = sentence.replace("_", " ")
+#         sentence = SentenceProcessor.convert_camelcase(sentence)
+#
+#         return sentence.lower()
+#
+#     @staticmethod
+#     def lemmatize(sentence: str) -> str:
+#         """
+#         Lemmatize a sentence (e.g. running -> run)
+#         """
+#         words = [word for word in sentence.split(' ') if word != '']
+#
+#         lemmatized = []
+#         for token, tag in nltk.pos_tag(words):
+#             word_pos = SentenceProcessor.get_wordnet_pos(tag)
+#             lemmatizer = nltk.WordNetLemmatizer()
+#             try:
+#                 if word_pos != '':
+#                     lemmatized.append(lemmatizer.lemmatize(token, pos=word_pos))
+#                 else:
+#                     lemmatized.append(lemmatizer.lemmatize(token))
+#             except UnicodeDecodeError:
+#                 logger.error(f'Lemmatization failed for {token}, tag: {tag}, word pos: {word_pos}')
+#
+#         return ' '.join(lemmatized)
+#
+#     @staticmethod
+#     def remove_stop_words(sentence: str) -> str:
+#         """
+#         Remove stop words from a sentence
+#         """
+#         return ' '.join([word for word in sentence.split(' ') if word not in nltk.corpus.stopwords.words('english')])
+#
+#     @staticmethod
+#     def get_wordnet_pos(treebank_tag: str) -> str:
+#         """
+#         Get the WordNet part-of-speech constant for the treebank tag
+#         """
+#         if treebank_tag.startswith('J'):
+#             return nltk.corpus.wordnet.ADJ
+#         elif treebank_tag.startswith('V'):
+#             return nltk.corpus.wordnet.VERB
+#         elif treebank_tag.startswith('N'):
+#             return nltk.corpus.wordnet.NOUN
+#         elif treebank_tag.startswith('R'):
+#             return nltk.corpus.wordnet.ADV
+#         else:
+#             return ''
+#
+#     @staticmethod
+#     def convert_camelcase(sentence: str) -> str:
+#         """
+#         Convert `camelCase` to `camel case`.
+#         """
+#         words = [all_cap_regex.sub(r'\1 \2', first_cap_regex.sub(r'\1 \2', word)) for word in sentence.split(" ")]
+#
+#         return ' '.join(words)
 
 def make_types_consistent(df_all: pd.DataFrame) -> pd.DataFrame:
     """
