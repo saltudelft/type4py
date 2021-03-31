@@ -23,7 +23,7 @@ def extract(args):
 def preprocess(args):
     from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
-    preprocess_ext_fns(args.o)
+    preprocess_ext_fns(args.o, args.l)
 
 def vectorize(args):
     from type4py.vectorize import vectorize_args_ret
@@ -76,6 +76,7 @@ def main():
     # Preprocess phase
     proprocess_parser = sub_parsers.add_parser('preprocess')
     proprocess_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    proprocess_parser.add_argument('--l', '--limit', required=False, type=int, help="Limits the number of projects to be processed")
     proprocess_parser.set_defaults(func=preprocess)
 
     # Vectorize phase

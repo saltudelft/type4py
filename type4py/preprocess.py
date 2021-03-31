@@ -200,20 +200,27 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_aval_type
 
     return df_param, df_ret
 
-def preprocess_ext_fns(output_dir: str):
+def preprocess_ext_fns(output_dir: str, limit: int = None):
     """
     Applies preprocessing steps to the extracted functions
     """
 
     logger.info("Merging JSON projects and loading functions' Dataframe")
-    create_dataframe_fns(output_dir, merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json")))
+    create_dataframe_fns(output_dir, merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit))
     processed_proj_fns = pd.read_csv(os.path.join(output_dir, "all_fns.csv"), low_memory=False)
 
     # Split the processed files into train, validation and test sets
-    train_files, test_files = train_test_split(pd.DataFrame(processed_proj_fns['file'].unique(), columns=['file']),
-                                               test_size=0.2)
-    train_files, valid_files = train_test_split(pd.DataFrame(processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]['file'].unique(),
-                                                 columns=['file']), test_size=0.1)
+    if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])):
+        logger.info("Found the sets split in the input dataset")
+        train_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'train']
+        valid_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'valid']
+        test_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'test']
+    else:
+        logger.info("Splitting sets randomly")
+        train_files, test_files = train_test_split(pd.DataFrame(processed_proj_fns['file'].unique(), columns=['file']),
+                                                test_size=0.2)
+        train_files, valid_files = train_test_split(pd.DataFrame(processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]['file'].unique(),
+                                                    columns=['file']), test_size=0.1)
 
     df_train = processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]
     logger.info(f"No. of functions in train set: {df_train.shape[0]:,}")
