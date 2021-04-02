@@ -134,7 +134,8 @@ class IdentifierSequence:
     def seq_length_var(self):
         return {
             'var_name': 10,
-        } # TODO: padding needed for combining with ret & param
+            "padding": 21
+        }
 
     def __gen_datapoint(self, seq_length):
         datapoint = np.zeros((sum(seq_length.values()), W2V_VEC_LENGTH))
@@ -219,10 +220,9 @@ class TokenSequence:
         elif self.var_usage is not None:
             return self.var_datapoint()
 
-def process_datapoints(f_name, output_path, embedding_type, type, trans_func, cached_file: bool=False):
+def process_datapoints(df, output_path, embedding_type, type, trans_func, cached_file: bool=False):
 
     if not os.path.exists(os.path.join(output_path, embedding_type + type + '_datapoints_x.npy')) or not cached_file:
-        df = pd.read_csv(f_name, na_filter=False)
         datapoints = df.apply(trans_func, axis=1)
 
         datapoints_X = np.stack(datapoints.progress_apply(lambda x: x.generate_datapoint()),
@@ -248,10 +248,6 @@ def gen_aval_types_datapoints(df_params, df_ret, df_var, set_type, output_path, 
             f'ret_{set_type}_aval_types_dp.npy'))) and os.path.exists(os.path.join(output_path, f'var_{set_type}_aval_types_dp.npy')) \
                  or not cached_file:
 
-        df_params = pd.read_csv(df_params)
-        df_ret = pd.read_csv(df_ret)
-        df_var = pd.read_csv(df_var)
-
         aval_types_params = np.stack(df_params.progress_apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
                                                     axis=1), axis=0)
         aval_types_ret = np.stack(df_ret.progress_apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.ret_aval_enc),
@@ -275,11 +271,6 @@ def gen_labels_vector(params_df: pd.DataFrame, returns_df: pd.DataFrame, var_df:
     """
     It generates a flattened labels vector
     """
-
-    params_df = pd.read_csv(params_df)
-    returns_df = pd.read_csv(returns_df)
-    var_df = pd.read_csv(var_df)
-
     np.save(os.path.join(output_path, f'params_{set_type}_dps_y_all'), params_df['arg_type_enc_all'].values)
     np.save(os.path.join(output_path, f'ret_{set_type}_dps_y_all'), returns_df['return_type_enc_all'].values)
     np.save(os.path.join(output_path, f'var_{set_type}_dps_y_all'), var_df['var_type_enc_all'].values)
@@ -291,15 +282,22 @@ def vectorize_args_ret(output_path: str):
     Creates vector representation of functions' arguments and return values
     """
 
-    param_df = pd.read_csv(os.path.join(output_path, "_ml_param_train.csv"), na_filter=False)
-    return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_train.csv"), na_filter=False)
-    var_df = pd.read_csv(os.path.join(output_path, "_ml_var_train.csv"), na_filter=False)
+    train_param_df = pd.read_csv(os.path.join(output_path, "_ml_param_train.csv"), na_filter=False)
+    train_return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_train.csv"), na_filter=False)
+    train_var_df = pd.read_csv(os.path.join(output_path, "_ml_var_train.csv"), na_filter=False)
+    logger.info("Loaded the training data")
 
-    logger.info(f"No. of parameters types in train set: {param_df.shape[0]:,}")
-    logger.info(f"No. of returns types in train set: {return_df.shape[0]:,}")
-    logger.info(f"No. of variables types in train set: {var_df.shape[0]:,}")
+    valid_param_df = pd.read_csv(os.path.join(output_path, "_ml_param_valid.csv"), na_filter=False)
+    valid_return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_valid.csv"), na_filter=False)
+    valid_var_df = pd.read_csv(os.path.join(output_path, "_ml_var_valid.csv"), na_filter=False)
+    logger.info("Loaded the validation data")
 
-    embedder = W2VEmbedding(param_df, return_df, var_df,
+    test_param_df = pd.read_csv(os.path.join(output_path, "_ml_param_test.csv"), na_filter=False)
+    test_return_df = pd.read_csv(os.path.join(output_path, "_ml_ret_test.csv"), na_filter=False)
+    test_var_df = pd.read_csv(os.path.join(output_path, "_ml_var_test.csv"), na_filter=False)
+    logger.info("Loaded the test data")
+
+    embedder = W2VEmbedding(train_param_df, train_return_df, train_var_df,
                             os.path.join(output_path, 'w2v_token_model.bin'))
     embedder.train_token_model()
 
@@ -321,25 +319,25 @@ def vectorize_args_ret(output_path: str):
 
     # Identifiers
     logger.info("[arg][identifiers] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
+    process_datapoints(train_param_df,
                        os.path.join(output_path, "vectors", "train"),
                        'identifiers_', 'param_train', id_trans_func_param)
-    process_datapoints(os.path.join(output_path, "_ml_param_valid.csv"),
+    process_datapoints(valid_param_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'identifiers_', 'param_valid', id_trans_func_param)
-    process_datapoints(os.path.join(output_path, "_ml_param_test.csv"),
+    process_datapoints(test_param_df,
                        os.path.join(output_path, "vectors", "test"),
                        'identifiers_', 'param_test', id_trans_func_param)
     
     # Tokens
     logger.info("[arg][code tokens] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
+    process_datapoints(train_param_df,
                        os.path.join(output_path, "vectors", "train"),
                        'tokens_', 'param_train', token_trans_func_param)
-    process_datapoints(os.path.join(output_path, "_ml_param_valid.csv"),
+    process_datapoints(valid_param_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'tokens_', 'param_valid', token_trans_func_param)
-    process_datapoints(os.path.join(output_path, "_ml_param_test.csv"),
+    process_datapoints(test_param_df,
                        os.path.join(output_path, "vectors", "test"),
                        'tokens_', 'param_test', token_trans_func_param)
 
@@ -350,25 +348,25 @@ def vectorize_args_ret(output_path: str):
 
     # Identifiers
     logger.info("[ret][identifiers] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_ret_train.csv"),
+    process_datapoints(train_return_df,
                        os.path.join(output_path, "vectors", "train"),
                        'identifiers_', 'ret_train', id_trans_func_ret)
-    process_datapoints(os.path.join(output_path, "_ml_ret_valid.csv"),
+    process_datapoints(valid_return_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'identifiers_', 'ret_valid', id_trans_func_ret)
-    process_datapoints(os.path.join(output_path, "_ml_ret_test.csv"),
+    process_datapoints(test_return_df,
                        os.path.join(output_path, "vectors", "test"),
                        'identifiers_', 'ret_test', id_trans_func_ret)
 
     # Tokens
     logger.info("[ret][code tokens] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_ret_train.csv"),
+    process_datapoints(train_return_df,
                        os.path.join(output_path, "vectors", "train"),
                        'tokens_', 'ret_train', token_trans_func_ret)
-    process_datapoints(os.path.join(output_path, "_ml_ret_valid.csv"),
+    process_datapoints(valid_return_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'tokens_', 'ret_valid', token_trans_func_ret)
-    process_datapoints(os.path.join(output_path, "_ml_ret_test.csv"),
+    process_datapoints(test_return_df,
                        os.path.join(output_path, "vectors", "test"),
                        'tokens_', 'ret_test', token_trans_func_ret)
 
@@ -379,56 +377,44 @@ def vectorize_args_ret(output_path: str):
 
     # Identifiers
     logger.info("[var][identifiers] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_var_train.csv"),
+    process_datapoints(train_var_df,
                        os.path.join(output_path, "vectors", "train"),
                        'identifiers_', 'var_train', id_trans_func_var)
-    process_datapoints(os.path.join(output_path, "_ml_var_valid.csv"),
+    process_datapoints(valid_var_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'identifiers_', 'var_valid', id_trans_func_var)
-    process_datapoints(os.path.join(output_path, "_ml_var_test.csv"),
+    process_datapoints(test_var_df,
                        os.path.join(output_path, "vectors", "test"),
                        'identifiers_', 'var_test', id_trans_func_var)
 
     # Tokens
     logger.info("[var][code tokens] Generating vectors")
-    process_datapoints(os.path.join(output_path, "_ml_var_train.csv"),
+    process_datapoints(train_var_df,
                        os.path.join(output_path, "vectors", "train"),
                        'tokens_', 'var_train', token_trans_func_var)
-    process_datapoints(os.path.join(output_path, "_ml_var_valid.csv"),
+    process_datapoints(valid_var_df,
                        os.path.join(output_path, "vectors", "valid"),
                        'tokens_', 'var_valid', token_trans_func_var)
-    process_datapoints(os.path.join(output_path, "_ml_var_test.csv"),
+    process_datapoints(test_var_df,
                        os.path.join(output_path, "vectors", "test"),
                        'tokens_', 'var_test', token_trans_func_var)
     
     # Generate data points for visible type hints
     logger.info("[visible type hints] Generating vectors")
-    gen_aval_types_datapoints(os.path.join(output_path, "_ml_param_train.csv"),
-                              os.path.join(output_path, "_ml_ret_train.csv"),
-                              os.path.join(output_path, "_ml_var_train.csv"),
+    gen_aval_types_datapoints(train_param_df, train_return_df, train_var_df,
                               'train', os.path.join(output_path, "vectors", "train"))
-    gen_aval_types_datapoints(os.path.join(output_path, "_ml_param_valid.csv"),
-                              os.path.join(output_path, "_ml_ret_valid.csv"),
-                              os.path.join(output_path, "_ml_var_valid.csv"),
+    gen_aval_types_datapoints(valid_param_df, valid_return_df, valid_var_df,
                               'valid', os.path.join(output_path, "vectors", "valid"))
-    gen_aval_types_datapoints(os.path.join(output_path, "_ml_param_test.csv"),
-                              os.path.join(output_path, "_ml_ret_test.csv"),
-                              os.path.join(output_path, "_ml_var_test.csv"),
+    gen_aval_types_datapoints(test_param_df, test_return_df, test_var_df,
                               'test', os.path.join(output_path, "vectors", "test"))
 
     # a flattened vector for labels
     logger.info("[true labels] Generating vectors")
-    gen_labels_vector(os.path.join(output_path, "_ml_param_train.csv"),
-                      os.path.join(output_path, "_ml_ret_train.csv"),
-                      os.path.join(output_path, "_ml_var_train.csv"),
+    gen_labels_vector(train_param_df, train_return_df, train_var_df,
                       'train', os.path.join(output_path, "vectors", "train"))
-    gen_labels_vector(os.path.join(output_path, "_ml_param_valid.csv"),
-                      os.path.join(output_path, "_ml_ret_valid.csv"),
-                      os.path.join(output_path, "_ml_var_valid.csv"),
+    gen_labels_vector(valid_param_df, valid_return_df, valid_var_df,
                       'valid', os.path.join(output_path, "vectors", "valid"))
-    gen_labels_vector(os.path.join(output_path, "_ml_param_test.csv"),
-                      os.path.join(output_path, "_ml_ret_test.csv"),
-                      os.path.join(output_path, "_ml_var_test.csv"),
+    gen_labels_vector(test_param_df, test_return_df, test_var_df,
                       'test', os.path.join(output_path, "vectors", "test"))
     
 
