@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 
 logger.name = __name__
+tqdm.pandas()
 
 # Precompile often used regex
 first_cap_regex = re.compile('(.)([A-Z][a-z]+)')
@@ -34,15 +35,14 @@ def make_types_consistent(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[
             #print(t)
             return t
     
-    
-    df_all['return_type'] = df_all['return_type'].apply(lambda x: re.sub(sub_regex, "", str(x)) if x else x)
-    df_all['arg_types'] = df_all['arg_types'].apply(lambda x: str([re.sub(sub_regex, "", t) \
+    df_all['return_type'] = df_all['return_type'].progress_apply(lambda x: re.sub(sub_regex, "", str(x)) if x else x)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([re.sub(sub_regex, "", t) \
                                                        if t else t for t in literal_eval(x)]))
-    df_all['return_type'] = df_all['return_type'].apply(remove_quote_types)
-    df_all['arg_types'] = df_all['arg_types'].apply(lambda x: str([remove_quote_types(t) if t else t for t in literal_eval(x)]))
+    df_all['return_type'] = df_all['return_type'].progress_apply(remove_quote_types)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([remove_quote_types(t) if t else t for t in literal_eval(x)]))
 
-    df_vars['var_type'] = df_vars['var_type'].apply(lambda x: re.sub(sub_regex, "", str(x)))
-    df_vars['var_type'] = df_vars['var_type'].apply(remove_quote_types)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(lambda x: re.sub(sub_regex, "", str(x)))
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(remove_quote_types)
     
     return df_all, df_vars
 
@@ -89,9 +89,9 @@ def resolve_type_aliasing(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[
             return resolved_alias
         return var_type
 
-    df_all['return_type'] = df_all['return_type'].apply(resolve_type_alias_ret)
-    df_all['arg_types'] = df_all['arg_types'].apply(resolve_type_alias_params)
-    df_vars['var_type'] = df_vars['var_type'].apply(resolve_type_alias_var)
+    df_all['return_type'] = df_all['return_type'].progress_apply(resolve_type_alias_ret)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(resolve_type_alias_params)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(resolve_type_alias_var)
 
     return df_all, df_vars
 
@@ -261,7 +261,8 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     processed_proj_vars = pd.read_csv(os.path.join(output_dir, "all_vars.csv"), low_memory=False)
 
     # Split the processed files into train, validation and test sets
-    if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])):
+    if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])) and \
+       all(processed_proj_vars['set'].isin(['train', 'valid', 'test'])):
         logger.info("Found the sets split in the input dataset")
         train_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'train']
         valid_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'valid']
@@ -299,6 +300,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     # Exclude variables without a type
     processed_proj_vars = processed_proj_vars[processed_proj_vars['var_type'].notnull()]
 
+    logger.info(f"Making type annotations consistent")
     # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
     processed_proj_fns, processed_proj_vars = make_types_consistent(processed_proj_fns, processed_proj_vars)
 
@@ -306,6 +308,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     assert any([bool(re.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
     assert any([bool(re.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
 
+    logger.info(f"Resolving type aliases")
     # Resolves type aliasing and mappings. e.g. `[]` -> `list`
     processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns, processed_proj_vars)
 
