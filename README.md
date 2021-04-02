@@ -38,10 +38,11 @@ Description:
 
 ## 2. Preprocessing
 ```
-$ type4py preprocess --o $OUTPUT_DIR
+$ type4py preprocess --o $OUTPUT_DIR --l $LIMIT
 ```
 Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
+- `$LIMIT`: The number of projects to be processed. [Optional]
 
 ## 3. Vectorizing
 ```
