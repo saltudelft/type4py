@@ -16,6 +16,10 @@ data_loading_ret = {'train': data_loaders.load_ret_train_data, 'valid': data_loa
                      'test': data_loaders.load_ret_test_data, 'labels': data_loaders.load_ret_labels, 
                      'name': 'return'}
 
+data_loading_var = {'train': data_loaders.load_var_train_data, 'valid': data_loaders.load_var_valid_data,
+                     'test': data_loaders.load_var_test_data, 'labels': data_loaders.load_var_labels, 
+                     'name': 'variable'}
+
 def extract(args):
     p = Pipeline(args.c, args.o, True, False, args.d)
     p.run(find_repos_list(args.c), args.w)
@@ -37,6 +41,8 @@ def learn(args):
         train(args.o, data_loading_param, args.p)
     elif args.r:
         train(args.o, data_loading_ret, args.p)
+    elif args.v:
+        train(args.o, data_loading_var, args.p)
     else:
         train(args.o, data_loading_comb, args.p)
 
@@ -47,6 +53,8 @@ def predict(args):
         test(args.o, data_loading_param)
     elif args.r:
         test(args.o, data_loading_ret)
+    elif args.v:
+        test(args.o, data_loading_var)
     else:
         test(args.o, data_loading_comb)
 
@@ -57,6 +65,8 @@ def eval(args):
         evaluate(args.o, data_loading_param, args.tp)
     elif args.r:
         evaluate(args.o, data_loading_ret, args.tp)
+    elif args.v:
+        evaluate(args.o, data_loading_var, args.tp)
     else:
         evaluate(args.o, data_loading_comb, args.tp)
 
@@ -90,6 +100,7 @@ def main():
     learning_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
     learning_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     learning_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
+    learning_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
     learning_parser.add_argument('--p', '--parameters', required=False, type=str, help="Path to the JSON file of model's hyper-parameters")
     learning_parser.set_defaults(func=learn)
 
@@ -99,6 +110,7 @@ def main():
     predict_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
     predict_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     predict_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
+    predict_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
     predict_parser.set_defaults(func=predict)
 
     # Evaluation phase
@@ -107,6 +119,7 @@ def main():
     eval_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
     eval_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     eval_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
+    eval_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
     eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
     eval_parser.set_defaults(func=eval)
 

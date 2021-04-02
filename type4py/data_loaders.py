@@ -16,35 +16,47 @@ def load_flat_labels_tensors(filename):
 # Combined data
 def load_combined_train_data(output_path: str):
     return torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_param_train_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_ret_train_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_ret_train_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_var_train_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'train', 'tokens_param_train_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'tokens_ret_train_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'tokens_ret_train_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'tokens_var_train_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'train', 'params_train_aval_types_dp.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'ret_train_aval_types_dp.npy'))))
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'ret_train_aval_types_dp.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'train', 'var_train_aval_types_dp.npy'))))
 
 def load_combined_valid_data(output_path: str):
     return torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_param_valid_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_ret_valid_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_ret_valid_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_var_valid_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'tokens_param_valid_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'tokens_ret_valid_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'tokens_ret_valid_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'tokens_var_valid_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'params_valid_aval_types_dp.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'ret_valid_aval_types_dp.npy'))))
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'ret_valid_aval_types_dp.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'var_valid_aval_types_dp.npy'))))
 
 def load_combined_test_data(output_path: str):
     return torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'test', 'identifiers_param_test_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'identifiers_ret_test_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'identifiers_ret_test_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'identifiers_var_test_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'test', 'tokens_param_test_datapoints_x.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'tokens_ret_test_datapoints_x.npy')))), \
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'tokens_ret_test_datapoints_x.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'tokens_var_test_datapoints_x.npy')))), \
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'test', 'params_test_aval_types_dp.npy')),
-                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'ret_test_aval_types_dp.npy'))))
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'ret_test_aval_types_dp.npy')),
+                      load_data_tensors_TW(join(output_path, 'vectors', 'test', 'var_test_aval_types_dp.npy'))))
 
 def load_combined_labels(output_path: str):
     return torch.cat((load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'params_train_dps_y_all.npy')),
-                      load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'ret_train_dps_y_all.npy')))), \
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'ret_train_dps_y_all.npy')),
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'var_train_dps_y_all.npy')))), \
            torch.cat((load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'params_valid_dps_y_all.npy')),
-                      load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'ret_valid_dps_y_all.npy')))), \
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'ret_valid_dps_y_all.npy')),
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'var_valid_dps_y_all.npy')))), \
            torch.cat((load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'params_test_dps_y_all.npy')),
-                      load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'ret_test_dps_y_all.npy'))))
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'ret_test_dps_y_all.npy')),
+                      load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'var_test_dps_y_all.npy'))))
 
 # Argument data
 def load_param_train_data(output_path: str):
@@ -87,6 +99,28 @@ def load_ret_labels(output_path: str):
     return load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'ret_train_dps_y_all.npy')), \
            load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'ret_valid_dps_y_all.npy')), \
            load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'ret_test_dps_y_all.npy'))
+
+# Variable data
+def load_var_train_data(output_path: str):
+    return load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_var_train_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'train', 'tokens_var_train_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'train', 'var_train_aval_types_dp.npy'))
+
+def load_var_valid_data(output_path: str):
+    return load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_var_valid_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'tokens_var_valid_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'var_valid_aval_types_dp.npy'))
+
+def load_var_test_data(output_path: str):
+    return load_data_tensors_TW(join(output_path, 'vectors', 'test', 'identifiers_var_test_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'test', 'tokens_var_test_datapoints_x.npy')), \
+           load_data_tensors_TW(join(output_path, 'vectors', 'test', 'var_test_aval_types_dp.npy'))
+
+def load_var_labels(output_path: str):
+    return load_flat_labels_tensors(join(output_path, 'vectors', 'train', 'var_train_dps_y_all.npy')), \
+           load_flat_labels_tensors(join(output_path, 'vectors', 'valid', 'var_valid_dps_y_all.npy')), \
+           load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'var_test_dps_y_all.npy'))
+
 
 def select_data(data, n):
     """
