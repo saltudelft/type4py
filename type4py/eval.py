@@ -1,6 +1,7 @@
 from type4py import logger
 from os.path import join
 from sklearn.metrics import classification_report
+from tqdm import tqdm
 import pickle
 import re
 import numpy as np
@@ -34,7 +35,7 @@ def eval_type_embed(y_pred: np.array, y_true: np.array, common_types: set, top_n
     return (corr_common_types + corr_rare_types) / len(y_pred) * 100.0 ,corr_common_types / all_common_types * 100.0, \
             corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
 
-def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set, top_n: int=10):
+def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set, label_enc, top_n: int=10):
     """
     Finds correct parametric types in predicted types. That is, List[*] is parametric type.
     Only outermost is considered, which is List in the given example.
@@ -48,7 +49,7 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set,
 
     def pred_param_types(pred_types: np.array, true_param_type):
         no_match = 0
-        for p in pred_types:
+        for p in label_enc.inverse_transform(pred_types):
             if re.match(param_type_match, p):
                 if true_param_type.group(1) == re.match(param_type_match, p).group(1):
                     no_match += 1
@@ -56,21 +57,25 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set,
         
         return no_match
 
-    for idx, t in enumerate(y_true):
-        matched_param_type = re.match(param_type_match, t)
+    for idx, t in enumerate(tqdm(y_true, total=len(y_true), desc="Calculating parametric match")):
+        
         if t in common_types:
             all_param_common_types += 1
             if t in y_pred[idx][:top_n]:
                 corr_param_common_types += 1
-            elif matched_param_type:
-                corr_param_common_types += pred_param_types(y_pred[idx], matched_param_type)
+            else:
+                matched_param_type = re.match(param_type_match, label_enc.inverse_transform([t])[0])
+                if matched_param_type:
+                    corr_param_common_types += pred_param_types(y_pred[idx], matched_param_type)
 
         else:
             all_param_rare_types += 1
             if t in y_pred[idx][:top_n]:
                 corr_param_rare_types += 1
-            elif matched_param_type:
-                corr_param_rare_types += pred_param_types(y_pred[idx], matched_param_type)
+            else:
+                matched_param_type = re.match(param_type_match, label_enc.inverse_transform([t])[0])
+                if matched_param_type:
+                    corr_param_rare_types += pred_param_types(y_pred[idx], matched_param_type)
 
     return (corr_param_common_types + corr_param_rare_types) / len(y_pred) * 100.0 ,corr_param_common_types / all_param_common_types * 100.0, \
             corr_param_rare_types / all_param_rare_types * 100.0
@@ -114,13 +119,9 @@ def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
     logger.info("Type4Py - Exact match - common: %.2f%%" % acc_common)
     logger.info("Type4Py - Exact match - rare: %.2f%%" % acc_rare)
 
-    pred_test_embed_inv = np.array([le_all.inverse_transform(pred) for pred in pred_test_embed])
-    embed_test_labels_inv = np.array([le_all.inverse_transform([t])[0] for t in embed_test_labels])
-    common_types_inv = np.array([le_all.inverse_transform([c])[0] for c in common_types])
-
-    acc_all_param, acc_common_param, acc_rare_param = eval_parametric_match(pred_test_embed_inv,
-                                                                            embed_test_labels_inv,
-                                                                            common_types_inv, top_n)
+    acc_all_param, acc_common_param, acc_rare_param = eval_parametric_match(pred_test_embed,
+                                                                            embed_test_labels,
+                                                                            common_types, le_all, top_n)
 
     logger.info("Type4Py - Parametric match - all: %.2f%%" % acc_all_param)
     logger.info("Type4Py - Parametric match - common: %.2f%%" % acc_common_param)
