@@ -7,7 +7,7 @@ from typing import Tuple
 from ast import literal_eval
 from collections import Counter
 from tqdm import tqdm
-import re
+import regex
 import os
 import pickle
 import pandas as pd
@@ -17,9 +17,9 @@ logger.name = __name__
 tqdm.pandas()
 
 # Precompile often used regex
-first_cap_regex = re.compile('(.)([A-Z][a-z]+)')
-all_cap_regex = re.compile('([a-z0-9])([A-Z])')
-sub_regex = r'typing\.|typing_extensions\.|t\.|builtins\.'
+first_cap_regex = regex.compile('(.)([A-Z][a-z]+)')
+all_cap_regex = regex.compile('([a-z0-9])([A-Z])')
+sub_regex = r'typing\.|typing_extensions\.|t\.|builtins\.|collections\.'
 
 
 def make_types_consistent(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -28,20 +28,20 @@ def make_types_consistent(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[
     """
 
     def remove_quote_types(t: str):
-        s = re.search(r'^\'(.+)\'$', t)
+        s = regex.search(r'^\'(.+)\'$', t)
         if bool(s):
             return s.group(1)
         else:
             #print(t)
             return t
     
-    df_all['return_type'] = df_all['return_type'].progress_apply(lambda x: re.sub(sub_regex, "", str(x)) if x else x)
-    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([re.sub(sub_regex, "", t) \
+    df_all['return_type'] = df_all['return_type'].progress_apply(lambda x: regex.sub(sub_regex, "", str(x)) if x else x)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([regex.sub(sub_regex, "", t) \
                                                        if t else t for t in literal_eval(x)]))
     df_all['return_type'] = df_all['return_type'].progress_apply(remove_quote_types)
     df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([remove_quote_types(t) if t else t for t in literal_eval(x)]))
 
-    df_vars['var_type'] = df_vars['var_type'].progress_apply(lambda x: re.sub(sub_regex, "", str(x)))
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(lambda x: regex.sub(sub_regex, "", str(x)))
     df_vars['var_type'] = df_vars['var_type'].progress_apply(remove_quote_types)
     
     return df_all, df_vars
@@ -51,17 +51,24 @@ def resolve_type_aliasing(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[
     Resolves type aliasing and mappings. e.g. `[]` -> `list`
     """
 
-    # TODO: These aliases may occur in a parametric type, not neccessarily at the beginning. E.g., List[{}] -> List[dict]
-    type_aliases = {'^{}$': 'dict', '^Dict$': 'dict', '^Set$': 'set', '^Tuple$': 'tuple',
-                    '\\bText\\b': 'str', '^\[\]$': 'list', '^\[{}\]$': 'List[dict]',
-                    '^List\[\]$': 'list', '^Set\[\]$': 'set', '^Tuple\[\]$': 'tuple', 
-                    '^Dict\[\]$': 'dict', '^Dict\[Any, *Any\]$': 'dict', '^List\[Any\]$': 'list',
-                    '^Tuple\[Any\]$': 'tuple', '^Tuple\[Any,+ *.*\]$': 'tuple', '^Set\[Any\]$': 'set'}
+    type_aliases = {'^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
+                    '^Set$|^Set\[\]$|^Set\[Any\]$': 'set',
+                    '(?<=.*)Tuple(?<=.*)|^Tuple\[\]$|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?.*?\](?<=.*)|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple[unknown, *?unknown]$|^Tuple[unknown, *?Any]$': 'tuple',
+                    '^Tuple\[(.+), *?\.\.\.\]$': r'Tuple[\1]',
+                    '\\bText\\b': 'str',
+                    '^\[\]$|^List\[\]$|^List\[Any\]$|^List$': 'list',
+                    '^\[{}\]$': 'List[dict]',
+                    '(?<=.*)Literal\[\'.*?\'\](?=.*)': 'Literal',
+                    '^Callable\[\.\.\., *?Any\]$|^Callable\[\[Any\], *?Any\]$|^Callable[[Named(x, Any)], Any]$': 'Callable',
+                    '^Iterator[Any]$': 'Iterator',
+                    '^OrderedDict[Any, *?Any]$': 'OrderedDict',
+                    '^Counter[Any]$': 'Counter',
+                    '(?<=.*)Match[Any](?<=.*)': 'Match'}
 
     def resolve_alias(t: str):
         for t_alias in type_aliases:
-            if re.search(re.compile(t_alias), t):
-                return re.sub(re.compile(t_alias), type_aliases[t_alias], t)
+            if regex.search(regex.compile(t_alias), t):
+                return regex.sub(regex.compile(t_alias), type_aliases[t_alias], t)
         return None
 
     def resolve_type_alias_params(types_list):
@@ -110,7 +117,8 @@ def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', '
 
     return df
 
-def filter_variables(df_vars: pd.DataFrame, types=['Any', 'None', 'object']):
+def filter_variables(df_vars: pd.DataFrame, types=['Any', 'None', 'object', 'type', 'Type[Any]',
+                                                   'Type[cls]', 'Type[type]', 'Type', 'TypeVar']):
     """
     Filters out variables with specified types such as Any or None
     """
@@ -304,16 +312,16 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
     processed_proj_fns, processed_proj_vars = make_types_consistent(processed_proj_fns, processed_proj_vars)
 
-    assert any([bool(re.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(re.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
-    assert any([bool(re.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
+    assert any([bool(regex.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
+    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
+    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
 
     logger.info(f"Resolving type aliases")
     # Resolves type aliasing and mappings. e.g. `[]` -> `list`
     processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns, processed_proj_vars)
 
-    assert any([bool(re.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(re.match(r'^{}$|\bText\b|^\[\]$', t)) for type_list in processed_proj_fns['arg_types'] for t in literal_eval(type_list)]) == False
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', str(t))) for t in processed_proj_fns['return_type']]) == False
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for type_list in processed_proj_fns['arg_types'] for t in literal_eval(type_list)]) == False
 
     # Filters variables with type Any or None
     processed_proj_vars = filter_variables(processed_proj_vars)
@@ -334,7 +342,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
 
     # Exclude self from arg names and return expressions
     processed_proj_fns['arg_names_str'] = processed_proj_fns['arg_names'].apply(lambda l: " ".join([v for v in l if v != 'self']))
-    processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([re.sub(r"self\.?", '', v) for v in l]))
+    processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([regex.sub(r"self\.?", '', v) for v in l]))
 
     # Drop all columns useless for the ML model
     processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
