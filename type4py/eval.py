@@ -8,20 +8,30 @@ import numpy as np
 
 logger.name = __name__
 
-def eval_type_embed(y_pred: np.array, y_true: np.array, common_types: set, top_n: int=10):
+def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, common_types: set,
+                    top_n: int=10):
 
+    all_ubiq_types = 0
+    corr_ubiq_types = 0
     all_common_types = 0
     corr_common_types = 0
     all_rare_types = 0
     corr_rare_types = 0
 
     # Mask arrays to keep location correct predictions
+    corr_ubiq_mask = np.array([False] * len(y_pred), dtype=np.bool)
     corr_common_mask = np.array([False] * len(y_pred), dtype=np.bool)
     corr_rare_mask = np.array([False] * len(y_pred), dtype=np.bool)
 
     for idx, p in enumerate(y_pred):
         
-        if y_true[idx] in common_types:
+        if y_true[idx] in ubiquitous_types:
+            all_ubiq_types += 1
+            if y_true[idx] in p[:top_n]:
+                corr_ubiq_types += 1
+                corr_ubiq_mask[idx] = True
+
+        elif y_true[idx] in common_types:
             all_common_types += 1
             if y_true[idx] in p[:top_n]:
                 corr_common_types += 1
@@ -32,8 +42,8 @@ def eval_type_embed(y_pred: np.array, y_true: np.array, common_types: set, top_n
                 corr_rare_types += 1
                 corr_rare_mask[idx] = True
 
-    return (corr_common_types + corr_rare_types) / len(y_pred) * 100.0 ,corr_common_types / all_common_types * 100.0, \
-            corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
+    return (corr_ubiq_types + corr_common_types + corr_rare_types) / len(y_pred) * 100.0, corr_ubiq_types / all_ubiq_types * 100.0, \
+            corr_common_types / all_common_types * 100.0, corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
 
 def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set, label_enc, top_n: int=10):
     """
@@ -107,15 +117,19 @@ def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
     # Loading label encoder andd common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     common_types = pickle.load(open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'rb'))
+    ubiquitous_types = set(le_all.transform(['str', 'int', 'list', 'bool', 'float']))
+    common_types = common_types - ubiquitous_types
 
     pred_test_embed = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_pred.npy"), allow_pickle=True)
     embed_test_labels = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"))
 
-    acc_all, acc_common, acc_rare, com_mask, rare_mask = eval_type_embed(pred_test_embed,
+    acc_all, acc_ubiq, acc_common, acc_rare, com_mask, rare_mask = eval_type_embed(pred_test_embed,
                                                                      embed_test_labels,
+                                                                     ubiquitous_types,
                                                                      common_types, top_n)
 
     logger.info("Type4Py - Exact match - all: %.2f%%" % acc_all)
+    logger.info("Type4Py - Exact match - ubiquitous: %.2f%%" % acc_ubiq)
     logger.info("Type4Py - Exact match - common: %.2f%%" % acc_common)
     logger.info("Type4Py - Exact match - rare: %.2f%%" % acc_rare)
 
