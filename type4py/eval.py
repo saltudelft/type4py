@@ -45,12 +45,14 @@ def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, c
     return (corr_ubiq_types + corr_common_types + corr_rare_types) / len(y_pred) * 100.0, corr_ubiq_types / all_ubiq_types * 100.0, \
             corr_common_types / all_common_types * 100.0, corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
 
-def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set, label_enc, top_n: int=10):
+def eval_parametric_match(y_pred: np.array, y_true: np.array, ubiquitous_types: str,
+                          common_types: set, label_enc, top_n: int=10):
     """
     Finds correct parametric types in predicted types. That is, List[*] is parametric type.
     Only outermost is considered, which is List in the given example.
     """
 
+    corr_ubiq_types = 0
     all_param_common_types = 0
     corr_param_common_types = 0
     all_param_rare_types = 0
@@ -69,7 +71,11 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set,
 
     for idx, t in enumerate(tqdm(y_true, total=len(y_true), desc="Calculating parametric match")):
         
-        if t in common_types:
+        if t in ubiquitous_types:
+            # The selected ubiquitous types are not parametric types
+            if t in y_pred[idx][:top_n]:
+                corr_ubiq_types += 1
+        elif t in common_types:
             all_param_common_types += 1
             if t in y_pred[idx][:top_n]:
                 corr_param_common_types += 1
@@ -87,8 +93,8 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, common_types: set,
                 if matched_param_type:
                     corr_param_rare_types += pred_param_types(y_pred[idx], matched_param_type)
 
-    return (corr_param_common_types + corr_param_rare_types) / len(y_pred) * 100.0 ,corr_param_common_types / all_param_common_types * 100.0, \
-            corr_param_rare_types / all_param_rare_types * 100.0
+    return (corr_ubiq_types + corr_param_common_types + corr_param_rare_types) / len(y_pred) * 100.0, \
+            corr_param_common_types / all_param_common_types * 100.0, corr_param_rare_types / all_param_rare_types * 100.0
 
 def eval_pred_dsl(y_true, y_pred, top_n=10):
     """
@@ -135,6 +141,7 @@ def evaluate(output_path: str, data_loading_funcs: dict, top_n: int=10):
 
     acc_all_param, acc_common_param, acc_rare_param = eval_parametric_match(pred_test_embed,
                                                                             embed_test_labels,
+                                                                            ubiquitous_types,
                                                                             common_types, le_all, top_n)
 
     logger.info("Type4Py - Parametric match - all: %.2f%%" % acc_all_param)
