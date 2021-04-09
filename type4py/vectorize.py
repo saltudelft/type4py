@@ -1,7 +1,7 @@
 from gensim.models import Word2Vec
 from time import time
 from tqdm import tqdm
-from type4py import logger
+from type4py import logger, AVAILABLE_TYPES_NUMBER
 from type4py.utils import mk_dir_not_exist
 import os
 import multiprocessing
@@ -12,7 +12,6 @@ logger.name = __name__
 tqdm.pandas()
 
 W2V_VEC_LENGTH = 100
-AVAILABLE_TYPES_NUMBER = 1024
 
 class TokenIterator:
     def __init__(self, param_df: pd.DataFrame, return_df: pd.DataFrame,

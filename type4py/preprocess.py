@@ -1,11 +1,12 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from type4py import logger
+from type4py import logger, AVAILABLE_TYPES_NUMBER
 from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns, create_dataframe_vars
 from libsa4py.utils import list_files
 from typing import Tuple
 from ast import literal_eval
 from collections import Counter
+from os.path import exists, join
 from tqdm import tqdm
 import regex
 import os
@@ -247,9 +248,9 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.D
         return len(types) - 1
 
     # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
-    df_param['param_aval_enc'] = df_param['arg_type'].apply(trans_aval_type)
-    df_ret['ret_aval_enc'] = df_ret['return_type'].apply(trans_aval_type)
-    df_var['var_aval_enc'] = df_var['var_type'].apply(trans_aval_type)
+    df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
+    df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
+    df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
 
     return df_param, df_ret
 
@@ -348,10 +349,17 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
                          'return_expr'])
 
-    # Find most frequent visible type hints
-    df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir)
-    processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
-                                                                      processed_proj_vars, df_types)
+    # Visible type hints
+    if exists(join(output_dir, 'MT4Py_VTHs.csv')):
+        logger.info("Using visible type hints")
+        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+                                                                          processed_proj_vars,
+                                                                          pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER))
+    else:
+        logger.info("Using naive available type hints")
+        df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir, AVAILABLE_TYPES_NUMBER)
+        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+                                                                        processed_proj_vars, df_types)
 
     # Split parameters and returns type dataset by file into a train and test sets
     df_params_train = processed_proj_fns_params[processed_proj_fns_params['file'].isin(train_files.to_numpy().flatten())]
