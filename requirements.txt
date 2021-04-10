@@ -7,7 +7,7 @@ astor
 docstring-parser
 scikit-learn
 gensim
-annoy
+annoy>=1.17.0
 torch
 dpu_utils
 libsa4py
