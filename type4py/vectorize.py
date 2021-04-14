@@ -59,16 +59,16 @@ class W2VEmbedding:
 
         w2v_model = Word2Vec(min_count=5,
                              window=5,
-                             size=W2V_VEC_LENGTH,
+                             vector_size=W2V_VEC_LENGTH,
                              workers=multiprocessing.cpu_count())
 
         t = time()
-        w2v_model.build_vocab(sentences=corpus_iterator)
+        w2v_model.build_vocab(corpus_iterable=corpus_iterator)
         logger.info('Built W2V vocab in {} mins'.format(round((time() - t) / 60, 2)))
-        logger.info(f"W2V model's vocab size: {len(w2v_model.wv.vocab):,}")
+        logger.info(f"W2V model's vocab size: {len(w2v_model.wv):,}")
 
         t = time()
-        w2v_model.train(sentences=corpus_iterator,
+        w2v_model.train(corpus_iterable=corpus_iterator,
                         total_examples=w2v_model.corpus_count,
                         epochs=20,
                         report_delay=1)
@@ -219,7 +219,7 @@ class TokenSequence:
         elif self.var_usage is not None:
             return self.var_datapoint()
 
-def process_datapoints(df, output_path, embedding_type, type, trans_func, cached_file: bool=False):
+def process_datapoints(df, output_path, embedding_type, type, trans_func, cached_file: bool=True):
 
     if not os.path.exists(os.path.join(output_path, embedding_type + type + '_datapoints_x.npy')) or not cached_file:
         datapoints = df.apply(trans_func, axis=1)
@@ -296,9 +296,12 @@ def vectorize_args_ret(output_path: str):
     test_var_df = pd.read_csv(os.path.join(output_path, "_ml_var_test.csv"), na_filter=False)
     logger.info("Loaded the test data")
 
-    embedder = W2VEmbedding(train_param_df, train_return_df, train_var_df,
-                            os.path.join(output_path, 'w2v_token_model.bin'))
-    embedder.train_token_model()
+    if not os.path.exists(os.path.join(output_path, 'w2v_token_model.bin')):
+        embedder = W2VEmbedding(train_param_df, train_return_df, train_var_df,
+                                os.path.join(output_path, 'w2v_token_model.bin'))
+        embedder.train_token_model()
+    else:
+        logger.warn("Loading an existing pre-trained W2V model!")
 
     w2v_token_model = Word2Vec.load(os.path.join(output_path, 'w2v_token_model.bin'))
 
