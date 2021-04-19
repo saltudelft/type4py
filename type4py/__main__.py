@@ -62,13 +62,13 @@ def eval(args):
     from type4py.eval import evaluate
     setup_logs_file(args.o, "eval")
     if args.a:
-        evaluate(args.o, data_loading_param, args.tp)
+        evaluate(args.o, data_loading_param, {'Parameter'}, args.tp)
     elif args.r:
-        evaluate(args.o, data_loading_ret, args.tp)
+        evaluate(args.o, data_loading_ret, {'Return'}, args.tp)
     elif args.v:
-        evaluate(args.o, data_loading_var, args.tp)
+        evaluate(args.o, data_loading_var, {'Variable'}, args.tp)
     else:
-        evaluate(args.o, data_loading_comb, args.tp)
+        evaluate(args.o, data_loading_comb, {'Parameter', 'Return', 'Variable'}, args.tp)
 
 def main():
     arg_parser = argparse.ArgumentParser()
