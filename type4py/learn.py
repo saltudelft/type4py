@@ -1,4 +1,4 @@
-from type4py.data_loaders import select_data, TripletDataset
+from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
 from type4py.utils import load_json
@@ -25,7 +25,7 @@ def load_model_params(params_file_path: str=None) -> dict:
         return load_json(params_file_path)
     else:
         return {'epochs': 10, 'lr': 0.002, 'dr': 0.25, 'output_size': 4096,
-                'batches': 2536, 'layers': 1, 'hidden_size': 512,
+                'batches': 2536, "batches_test": 8192, 'layers': 1, 'hidden_size': 512,
                 'margin': 2.0, 'k': 10}
 
 class Type4Py(nn.Module):
@@ -213,6 +213,25 @@ class TripletModel(nn.Module):
                self.model(*(s for s in p)), \
                self.model(*(s for s in n))
 
+def load_model(model_type: str, model_params: dict):
+    """
+    Load the Type4Py model with desired confings
+    """
+
+    if model_type == "woi":
+        return Type4PyWOI(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    elif model_type == "woc":
+        return Type4PyWOC(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    elif model_type == "wov":
+        return Type4PyWOV(W2V_VEC_LENGTH, model_params['hidden_size'], model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    else:
+        return Type4Py(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                               model_params['output_size'], model_params['dr']).to(DEVICE)
+
+
 def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int) -> AnnoyIndex:
     """
     Creates KNNs index for given type embedding vectors
@@ -322,56 +341,58 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
 def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     
-    logger.info(f"Training Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"Training Type4Py model")
     logger.info(f"***********************************************************************")
-    # Loading dataset
-    load_data_t = time()
-    X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
-    X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
-    Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
-    logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
+    # # Loading dataset
+    # load_data_t = time()
+    # X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
+    # X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
+    # Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
+    # logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
 
-    logger.info(f"No. of training samples: {len(X_id_train):,}")
-    logger.info(f"No. of validation samples: {len(X_id_valid):,}")
+    # logger.info(f"No. of training samples: {len(X_id_train):,}")
+    # logger.info(f"No. of validation samples: {len(X_id_valid):,}")
 
-    # Select data points which has at least frequency of 3 or more (for similarity learning)
-    train_mask = select_data(Y_all_train, MIN_DATA_POINTS)
-    X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
-                X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
+    # # Select data points which has at least frequency of 3 or more (for similarity learning)
+    # train_mask = select_data(Y_all_train, MIN_DATA_POINTS)
+    # X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
+    #             X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
 
-    valid_mask = select_data(Y_all_valid, MIN_DATA_POINTS)
-    X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
-                X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
+    # valid_mask = select_data(Y_all_valid, MIN_DATA_POINTS)
+    # X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
+    #             X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
+
+    # Model's hyper parameters
+    model_params = load_model_params(model_params_path)
+    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path, model_params['batches'])
 
     # Loading label encoder and finding ubiquitous & common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
-    count_types = Counter(Y_all_train.data.numpy())
-    common_types = [t.item() for t in Y_all_train if count_types[t.item()] >= 100]
+    count_types = Counter(train_data_loader.dataset.labels.data.numpy())
+    common_types = [t.item() for t in train_data_loader.dataset.labels if count_types[t.item()] >= 100]
     ubiquitous_types = set(le_all.transform(['str', 'int', 'list', 'bool', 'float']))
     common_types = set(common_types) - ubiquitous_types
 
     logger.info("Percentage of ubiquitous types: %.2f%%" % (len([t.item() for t in \
-        Y_all_train if t.item() in ubiquitous_types]) / Y_all_train.shape[0]*100.0))
+        train_data_loader.dataset.labels if t.item() in ubiquitous_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
     logger.info("Percentage of common types: %.2f%%" % (len([t.item() for t in \
-        Y_all_train if t.item() in common_types]) / Y_all_train.shape[0]*100.0))
+        train_data_loader.dataset.labels if t.item() in common_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
 
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
 
-    # Model's hyper parameters
-    model_params = load_model_params(model_params_path)
 
     # Batch loaders
-    train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \
-                          labels=Y_all_train, dataset_name=data_loading_funcs['name'], train_mode=True), \
-                          batch_size=model_params['batches'], shuffle=True, pin_memory=True, num_workers=12)
-    valid_loader = DataLoader(TripletDataset(X_id_valid, X_tok_valid, X_type_valid, \
-                            labels=Y_all_valid, dataset_name=data_loading_funcs['name'], \
-                                            train_mode=True), batch_size=model_params['batches'])
+    # train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \
+    #                       labels=Y_all_train, dataset_name=data_loading_funcs['name'], train_mode=True), \
+    #                       batch_size=model_params['batches'], shuffle=True, pin_memory=True, num_workers=12)
+    # valid_loader = DataLoader(TripletDataset(X_id_valid, X_tok_valid, X_type_valid, \
+    #                         labels=Y_all_valid, dataset_name=data_loading_funcs['name'], \
+    #                                         train_mode=True), batch_size=model_params['batches'])
 
     # Loading the model
-    model = Type4Py(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
-                    model_params['output_size'], model_params['dr']).to(DEVICE)
+    model = load_model(data_loading_funcs['name'], model_params)
+    logger.info(f"Loaded the {model.__class__.__name__} model")
     model = TripletModel(model).to(DEVICE)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -380,7 +401,7 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=model_params['lr'])
 
     train_t = time()
-    train_loop_dsl(model, criterion, optimizer, train_loader, None, model_params['lr'],
+    train_loop_dsl(model, criterion, optimizer, train_data_loader, valid_data_loader, model_params['lr'],
                    model_params['epochs'], ubiquitous_types, common_types, None)
     logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
