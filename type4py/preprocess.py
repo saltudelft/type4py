@@ -1,7 +1,9 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from type4py import logger, AVAILABLE_TYPES_NUMBER
+from type4py import logger, AVAILABLE_TYPES_NUMBER, MAX_PARAM_TYPE_DEPTH
 from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns, create_dataframe_vars
+from libsa4py.cst_transformers import ParametricTypeDepthReducer
+from libsa4py.cst_lenient_parser import lenient_parse_module
 from libsa4py.utils import list_files
 from typing import Tuple
 from ast import literal_eval
@@ -47,61 +49,74 @@ def make_types_consistent(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[
     
     return df_all, df_vars
 
-def resolve_type_aliasing(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
+                          df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Resolves type aliasing and mappings. e.g. `[]` -> `list`
     """
-
+    import libcst as cst
+    # Problematic patterns: (?<=.*)Tuple\[Any, *?.*?\](?<=.*)
+    # TODO: Handle a case like Dict[str, any] -> Dict[str, Any]
     type_aliases = {'^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
-                    '^Set$|^Set\[\]$|^Set\[Any\]$': 'set',
-                    '(?<=.*)Tuple(?<=.*)|^Tuple\[\]$|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?.*?\](?<=.*)|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple[unknown, *?unknown]$|^Tuple[unknown, *?Any]$': 'tuple',
+                    '^Set$|(?<=.*)Set\[\](?<=.*)|^Set\[Any\]$': 'set',
+                    '^Tuple$|(?<=.*)Tuple\[\](?<=.*)|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple\[unknown, *?unknown\]$|^Tuple\[unknown, *?Any\]$|(?<=.*)tuple\[\](?<=.*)': 'tuple',
                     '^Tuple\[(.+), *?\.\.\.\]$': r'Tuple[\1]',
                     '\\bText\\b': 'str',
-                    '^\[\]$|^List\[\]$|^List\[Any\]$|^List$': 'list',
+                    '^\[\]$|(?<=.*)List\[\](?<=.*)|^List\[Any\]$|^List$': 'list',
                     '^\[{}\]$': 'List[dict]',
                     '(?<=.*)Literal\[\'.*?\'\](?=.*)': 'Literal',
+                    '(?<=.*)Literal\[\d+\](?=.*)': 'Literal', # Maybe int?!
                     '^Callable\[\.\.\., *?Any\]$|^Callable\[\[Any\], *?Any\]$|^Callable[[Named(x, Any)], Any]$': 'Callable',
                     '^Iterator[Any]$': 'Iterator',
                     '^OrderedDict[Any, *?Any]$': 'OrderedDict',
                     '^Counter[Any]$': 'Counter',
                     '(?<=.*)Match[Any](?<=.*)': 'Match'}
 
-    def resolve_alias(t: str):
+    def resolve_type_alias(t: str):
+        org_t = t
         for t_alias in type_aliases:
             if regex.search(regex.compile(t_alias), t):
-                return regex.sub(regex.compile(t_alias), type_aliases[t_alias], t)
-        return None
+                t = regex.sub(regex.compile(t_alias), type_aliases[t_alias], t)
+        return t
 
-    def resolve_type_alias_params(types_list):
-        params_types = []
-        for t in literal_eval(types_list):
-            resolved_alias = resolve_alias(t)
-            if resolved_alias:
-                params_types.append(resolved_alias)
-            else:
-                params_types.append(t)
-            
-        return str(params_types)
+    df_param['arg_type'] = df_param['arg_type'].progress_apply(resolve_type_alias)
+    df_ret['return_type'] = df_ret['return_type'].progress_apply(resolve_type_alias)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(resolve_type_alias)
 
-    def resolve_type_alias_ret(ret_type):
-        if ret_type:
-            resolved_alias = resolve_alias(str(ret_type))
-            if resolved_alias:
-                return resolved_alias
-        
-        return ret_type
+    return df_param, df_ret, df_vars
 
-    def resolve_type_alias_var(var_type):
-        resolved_alias = resolve_alias(var_type)
-        if resolved_alias:
-            return resolved_alias
-        return var_type
+def preprocess_parametric_types(df_param: pd.DataFrame, df_ret: pd.DataFrame,
+                                df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Reduces the depth of parametric types
+    """
+    from libcst import parse_module, ParserSyntaxError
+    global s
+    s = 0
+    def reduce_depth_param_type(t: str) -> str:
+        global s
+        if regex.match(r'.+\[.+\]', t):
+            try:
+                t = parse_module(t)
+                t = t.visit(ParametricTypeDepthReducer(max_annot_depth=MAX_PARAM_TYPE_DEPTH))
+                return t.code
+            except ParserSyntaxError:
+                try:
+                    t = lenient_parse_module(t)
+                    t = t.visit(ParametricTypeDepthReducer(max_annot_depth=MAX_PARAM_TYPE_DEPTH))
+                    s += 1
+                    return t.code
+                except ParserSyntaxError:
+                    return None
+        else:
+            return t
 
-    df_all['return_type'] = df_all['return_type'].progress_apply(resolve_type_alias_ret)
-    df_all['arg_types'] = df_all['arg_types'].progress_apply(resolve_type_alias_params)
-    df_vars['var_type'] = df_vars['var_type'].progress_apply(resolve_type_alias_var)
+    df_param['arg_type'] = df_param['arg_type'].progress_apply(reduce_depth_param_type)
+    df_ret['return_type'] = df_ret['return_type'].progress_apply(reduce_depth_param_type)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(reduce_depth_param_type)
+    logger.info(f"Sucssesfull lenient parsing {s}")
 
-    return df_all, df_vars
+    return df_param, df_ret, df_vars
 
 def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', 'doc', 'sizeof']) -> pd.DataFrame:
     """
@@ -119,7 +134,7 @@ def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', '
     return df
 
 def filter_variables(df_vars: pd.DataFrame, types=['Any', 'None', 'object', 'type', 'Type[Any]',
-                                                   'Type[cls]', 'Type[type]', 'Type', 'TypeVar']):
+                                                   'Type[cls]', 'Type[type]', 'Type', 'TypeVar', 'Optional[Any]']):
     """
     Filters out variables with specified types such as Any or None
     """
@@ -129,6 +144,18 @@ def filter_variables(df_vars: pd.DataFrame, types=['Any', 'None', 'object', 'typ
     df_vars = df_vars[~df_vars['var_type'].isin(types)]
     logger.info(f"Variables after dropping on {','.join(types)}: {len(df_vars):,}")
     logger.info(f"Filtered out {df_var_len - len(df_vars):,} variables.")
+
+    return df_vars
+
+def filter_var_wo_type(df_vars: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filters out variables without a type
+    """
+    df_var_len = len(df_vars)
+    logger.info(f"Variables before dropping: {len(df_vars):,}")
+    df_vars = df_vars[df_vars['var_type'].notnull()]
+    logger.info(f"Variables after dropping dropping: {len(df_vars):,}")
+    logger.info(f"Filtered out {df_var_len - len(df_vars):,} variables w/o a type.")
 
     return df_vars
 
@@ -149,7 +176,9 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
             arg_type = literal_eval(row['arg_types'])[p_i].strip('\"')
 
             # Ignore Any or None types
-            if arg_type == '' or arg_type == 'Any' or arg_type == 'None':
+            # TODO: Ignore also object type
+            # TODO: Ignore Optional[Any]
+            if arg_type == '' or arg_type in {'Any', 'None', 'object'}:
                 continue
 
             arg_descr = literal_eval(row['arg_descrs'])[p_i]
@@ -307,7 +336,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     assert list(set(df_test['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
 
     # Exclude variables without a type
-    processed_proj_vars = processed_proj_vars[processed_proj_vars['var_type'].notnull()]
+    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
     logger.info(f"Making type annotations consistent")
     # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
@@ -316,13 +345,6 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     assert any([bool(regex.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
     assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
     assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
-
-    logger.info(f"Resolving type aliases")
-    # Resolves type aliasing and mappings. e.g. `[]` -> `list`
-    processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns, processed_proj_vars)
-
-    assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for type_list in processed_proj_fns['arg_types'] for t in literal_eval(type_list)]) == False
 
     # Filters variables with type Any or None
     processed_proj_vars = filter_variables(processed_proj_vars)
@@ -335,8 +357,23 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
 
     # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
     processed_proj_fns = filter_return_dp(processed_proj_fns)
-
     processed_proj_fns = format_df(processed_proj_fns)
+
+    logger.info(f"Resolving type aliases")
+    # Resolves type aliasing and mappings. e.g. `[]` -> `list`
+    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns_params,
+                                                                                               processed_proj_fns,
+                                                                                               processed_proj_vars)
+
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', t)) for t in processed_proj_fns['return_type']]) == False
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for t in processed_proj_fns_params['arg_type']]) == False
+
+    logger.info(f"Preproceessing parametric types")
+    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = preprocess_parametric_types(processed_proj_fns_params,
+                                                                                                     processed_proj_fns,
+                                                                                                     processed_proj_vars)
+    # Exclude variables without a type
+    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
     processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
                                                                              processed_proj_vars, output_dir)
