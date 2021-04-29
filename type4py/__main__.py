@@ -53,13 +53,13 @@ def learn(args):
     from type4py.learn import train
     setup_logs_file(args.o, "learn")
     if args.woi:
-        train(args.o, data_loading_woi, args.p)
+        train(args.o, data_loading_woi, args.p, args.v)
     elif args.woc:
-        train(args.o, data_loading_woc, args.p)
+        train(args.o, data_loading_woc, args.p, args.v)
     elif args.wov:
-        train(args.o, data_loading_wov, args.p)
+        train(args.o, data_loading_wov, args.p, args.v)
     else:
-        train(args.o, data_loading_comb, args.p)
+        train(args.o, data_loading_comb, args.p, args.v)
 
 def predict(args):
     from type4py.predict import test
@@ -70,7 +70,7 @@ def predict(args):
         test(args.o, data_loading_woc)
     elif args.wov:
         test(args.o, data_loading_wov)
-    else:
+    elif args.c:
         test(args.o, data_loading_comb)
 
 def eval(args):
@@ -114,17 +114,18 @@ def main():
     # Learning phase
     learning_parser = sub_parsers.add_parser('learn')
     learning_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    #learning_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
+    learning_parser.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
     learning_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     learning_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     learning_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
     learning_parser.add_argument('--p', '--parameters', required=False, type=str, help="Path to the JSON file of model's hyper-parameters")
+    learning_parser.add_argument('--v', '--validation', default=False, action="store_true", help="Evaluating Type4Py on the validation set when training")
     learning_parser.set_defaults(func=learn)
 
     # Prediction phase
     predict_parser = sub_parsers.add_parser('predict')
     predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    #predict_parser.add_argument('--c', '--combined', default=True, action="store_true", help="combined prediction task")
+    predict_parser.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
     predict_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     predict_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     predict_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")

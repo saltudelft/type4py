@@ -13,5 +13,7 @@ __version__ = "0.1"
 # Constants and parameters
 MIN_DATA_POINTS = 3
 AVAILABLE_TYPES_NUMBER = 1024
+KNN_TREE_SIZE = 20
+MAX_PARAM_TYPE_DEPTH = 2
 
 

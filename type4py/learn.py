@@ -6,6 +6,7 @@ from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from torch.utils.data import DataLoader
 from typing import Tuple
 from collections import Counter
+from multiprocessing import cpu_count
 from os.path import join
 from time import time
 from annoy import AnnoyIndex
@@ -339,32 +340,16 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
     return valid_total_loss, acc_all
 
-def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
+def train(output_path: str, data_loading_funcs: dict, model_params_path=None, validation:bool=False):
     
     logger.info(f"Training Type4Py model")
     logger.info(f"***********************************************************************")
-    # # Loading dataset
-    # load_data_t = time()
-    # X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
-    # X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
-    # Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
-    # logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
-
-    # logger.info(f"No. of training samples: {len(X_id_train):,}")
-    # logger.info(f"No. of validation samples: {len(X_id_valid):,}")
-
-    # # Select data points which has at least frequency of 3 or more (for similarity learning)
-    # train_mask = select_data(Y_all_train, MIN_DATA_POINTS)
-    # X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
-    #             X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
-
-    # valid_mask = select_data(Y_all_valid, MIN_DATA_POINTS)
-    # X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
-    #             X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
-
+   
     # Model's hyper parameters
     model_params = load_model_params(model_params_path)
-    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path, model_params['batches'])
+    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+                                                                        model_params['batches'],
+                                                                        no_workers=cpu_count()//2)
 
     # Loading label encoder and finding ubiquitous & common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
@@ -381,18 +366,9 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
 
-
-    # Batch loaders
-    # train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \
-    #                       labels=Y_all_train, dataset_name=data_loading_funcs['name'], train_mode=True), \
-    #                       batch_size=model_params['batches'], shuffle=True, pin_memory=True, num_workers=12)
-    # valid_loader = DataLoader(TripletDataset(X_id_valid, X_tok_valid, X_type_valid, \
-    #                         labels=Y_all_valid, dataset_name=data_loading_funcs['name'], \
-    #                                         train_mode=True), batch_size=model_params['batches'])
-
     # Loading the model
     model = load_model(data_loading_funcs['name'], model_params)
-    logger.info(f"Loaded the {model.__class__.__name__} model")
+    logger.info(f"Intializing the {model.__class__.__name__} model")
     model = TripletModel(model).to(DEVICE)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -401,7 +377,8 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=model_params['lr'])
 
     train_t = time()
-    train_loop_dsl(model, criterion, optimizer, train_data_loader, valid_data_loader, model_params['lr'],
+    train_loop_dsl(model, criterion, optimizer, train_data_loader,
+                   valid_data_loader if validation else None, model_params['lr'],
                    model_params['epochs'], ubiquitous_types, common_types, None)
     logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
