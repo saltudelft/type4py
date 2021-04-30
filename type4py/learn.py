@@ -1,14 +1,16 @@
-from type4py.data_loaders import select_data, TripletDataset
+from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
 from type4py.utils import load_json
-from type4py import logger
+from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from torch.utils.data import DataLoader
 from typing import Tuple
 from collections import Counter
+from multiprocessing import cpu_count
 from os.path import join
 from time import time
 from annoy import AnnoyIndex
+from tqdm import tqdm
 import numpy as np
 import torch.nn as nn
 import torch
@@ -24,11 +26,13 @@ def load_model_params(params_file_path: str=None) -> dict:
         return load_json(params_file_path)
     else:
         return {'epochs': 10, 'lr': 0.002, 'dr': 0.25, 'output_size': 4096,
-                'batches': 2536, 'layers': 1, 'hidden_size': 512,
+                'batches': 2536, "batches_test": 8192, 'layers': 1, 'hidden_size': 512,
                 'margin': 2.0, 'k': 10}
 
 class Type4Py(nn.Module):
- 
+    """
+    Complete model
+    """
     def __init__(self, input_size: int, hidden_size: int, aval_type_size: int,
                  num_layers: int, output_size: int, dropout_rate: float):
         super(Type4Py, self).__init__()
@@ -67,6 +71,129 @@ class Type4Py(nn.Module):
         x = self.linear(x)
         return x
 
+class Type4PyWOI(nn.Module):
+    """
+    Type4Py without the identifier RNN
+    """
+    def __init__(self, input_size: int, hidden_size: int, aval_type_size: int,
+                 num_layers: int, output_size: int, dropout_rate: float):
+        super(Type4PyWOI, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.aval_type_size = aval_type_size
+        self.num_layers = num_layers
+        self.output_size = output_size
+
+        self.lstm_tok = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True,
+                                bidirectional=True)
+
+        self.linear = nn.Linear(self.hidden_size * 2 + self.aval_type_size, self.output_size)
+
+        self.dropout = nn.Dropout(p=dropout_rate)
+
+    def forward(self, x_tok, x_type):
+
+        # Using dropout on input sequences
+        x_tok = self.dropout(x_tok)
+
+        # Flattens LSTMs weights for data-parallelism in multi-GPUs config
+        self.lstm_tok.flatten_parameters()
+
+        x_tok, _ = self.lstm_tok(x_tok)
+
+        # Decode the hidden state of the last time step
+        x_tok = x_tok[:, -1, :]
+
+        x = torch.cat((x_tok, x_type), 1)
+
+        x = self.linear(x)
+        return x
+
+class Type4PyWOC(nn.Module):
+    """
+    Type4Py without code context
+    """
+    def __init__(self, input_size: int, hidden_size: int, aval_type_size: int,
+                 num_layers: int, output_size: int, dropout_rate: float):
+        super(Type4PyWOC, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.aval_type_size = aval_type_size
+        self.num_layers = num_layers
+        self.output_size = output_size
+
+        self.lstm_id = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True,
+                               bidirectional=True)
+
+        self.linear = nn.Linear(self.hidden_size * 2 + self.aval_type_size, self.output_size)
+
+        self.dropout = nn.Dropout(p=dropout_rate)
+
+    def forward(self, x_id, x_type):
+
+        # Using dropout on input sequences
+        x_id = self.dropout(x_id)
+
+        # Flattens LSTMs weights for data-parallelism in multi-GPUs config
+        self.lstm_id.flatten_parameters()
+
+        x_id, _ = self.lstm_id(x_id)
+
+        # Decode the hidden state of the last time step
+        x_id = x_id[:, -1, :]
+
+        x = torch.cat((x_id, x_type), 1)
+
+        x = self.linear(x)
+        return x
+
+class Type4PyWOV(nn.Module):
+    """
+    Type4Py model without visible type hints
+    """
+
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int, output_size: int,
+                 dropout_rate: float):
+        super(Type4PyWOV, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.output_size = output_size
+
+        self.lstm_id = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True,
+                               bidirectional=True)
+        self.lstm_tok = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True,
+                                bidirectional=True)
+
+        self.linear = nn.Linear(self.hidden_size * 2 * 2, self.output_size)
+
+        self.dropout = nn.Dropout(p=dropout_rate)
+
+    def forward(self, x_id, x_tok):
+
+        # Using dropout on input sequences
+        x_id = self.dropout(x_id)
+        x_tok = self.dropout(x_tok)
+
+        # Flattens LSTMs weights for data-parallelism in multi-GPUs config
+        self.lstm_id.flatten_parameters()
+        self.lstm_tok.flatten_parameters()
+
+        x_id, _ = self.lstm_id(x_id)
+        x_tok, _ = self.lstm_tok(x_tok)
+
+        # Decode the hidden state of the last time step
+        x_id = x_id[:, -1, :]
+        x_tok = x_tok[:, -1, :]
+
+        x = torch.cat((x_id, x_tok), 1)
+
+        x = self.linear(x)
+        return x
+
 class TripletModel(nn.Module):
     """
     A model with Triplet loss for similarity learning
@@ -79,40 +206,63 @@ class TripletModel(nn.Module):
         """
         A triplet consists of anchor, positive examples and negative examples
         """
-        return self.model(*(s.to(DEVICE) for s in a)), \
-               self.model(*(s.to(DEVICE) for s in p)), \
-               self.model(*(s.to(DEVICE) for s in n))
+        # return self.model(*(s.to(DEVICE) for s in a)), \
+        #        self.model(*(s.to(DEVICE) for s in p)), \
+        #        self.model(*(s.to(DEVICE) for s in n))
 
-def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int,
-                     tree_size: int) -> AnnoyIndex:
+        return self.model(*(s for s in a)), \
+               self.model(*(s for s in p)), \
+               self.model(*(s for s in n))
+
+def load_model(model_type: str, model_params: dict):
+    """
+    Load the Type4Py model with desired confings
+    """
+
+    if model_type == "woi":
+        return Type4PyWOI(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    elif model_type == "woc":
+        return Type4PyWOC(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    elif model_type == "wov":
+        return Type4PyWOV(W2V_VEC_LENGTH, model_params['hidden_size'], model_params['layers'],
+                          model_params['output_size'], model_params['dr']).to(DEVICE)
+    else:
+        return Type4Py(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                               model_params['output_size'], model_params['dr']).to(DEVICE)
+
+
+def create_knn_index(train_types_embed: np.array, valid_types_embed: np.array, type_embed_dim:int) -> AnnoyIndex:
     """
     Creates KNNs index for given type embedding vectors
     """
 
     annoy_idx = AnnoyIndex(type_embed_dim, 'euclidean')
 
-    for i, v in enumerate(train_types_embed):
+    for i, v in enumerate(tqdm(train_types_embed, total=len(train_types_embed),
+                          desc="KNN index")):
         annoy_idx.add_item(i, v)
 
     if valid_types_embed is not None:
         for i, v in enumerate(valid_types_embed):
             annoy_idx.add_item(len(train_types_embed) + i, v)
 
-    annoy_idx.build(tree_size)
+    annoy_idx.build(KNN_TREE_SIZE)
     return annoy_idx
 
 def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader: DataLoader,
                    valid_data_loader: DataLoader, learning_rate: float, epochs: int,
-                   common_types: set, model_path: str):
+                   ubiquitous_types: str, common_types: set, model_path: str):
     from type4py.predict import predict_type_embed
     
     for epoch in range(1, epochs + 1):
         model.train()
-        epoch_start_t = time()
+        #epoch_start_t = time()
         total_loss = 0
 
-        for batch_i, (anchor, positive_ex, negative_ex) in enumerate(train_data_loader):
-
+        for batch_i, (anchor, positive_ex, negative_ex) in enumerate(tqdm(train_data_loader,
+                                                                     total=len(train_data_loader), desc=f"Epoch {epoch}")):
             anchor, _ = anchor[0], anchor[1]
             positive_ex, _ = positive_ex[0], positive_ex[1]
             negative_ex, _ = negative_ex[0], negative_ex[1]
@@ -127,18 +277,20 @@ def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader:
 
             total_loss += loss.item()
          
-        logger.info(f"epoch: {epoch} train loss: {total_loss} in {(time() - epoch_start_t) / 60.0:.2f} min.")
+        logger.info(f"epoch: {epoch} train loss: {total_loss}")
 
-        if epoch % 5 == 0:
-            valid_start = time()
-            valid_loss, valid_all_acc = compute_validation_loss_dsl(model, criterion, train_data_loader, valid_data_loader,
-                                                                    predict_type_embed, common_types)
-            logger.info(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
-            #torch.save(model.module, join(model_path, f"{model.module.tw_embed_model.__class__.__name__}_{train_data_loader.dataset.dataset_name}_e{epoch}_{datetime.now().strftime('%b%d_%H-%M-%S')}.pt"))
+        if valid_data_loader is not None:
+            if epoch % 5 == 0:
+                logger.info("Evaluating on validation set")
+                valid_start = time()
+                valid_loss, valid_all_acc = compute_validation_loss_dsl(model, criterion, train_data_loader, valid_data_loader,
+                                                                        predict_type_embed, ubiquitous_types, common_types)
+                logger.info(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
+                #torch.save(model.module, join(model_path, f"{model.module.tw_embed_model.__class__.__name__}_{train_data_loader.dataset.dataset_name}_e{epoch}_{datetime.now().strftime('%b%d_%H-%M-%S')}.pt"))
 
 def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_loader: DataLoader,
                                 valid_data_loader: DataLoader, pred_func: callable,
-                                 common_types: set) -> Tuple[float, float]:
+                                ubiquitous_types:str, common_types: set) -> Tuple[float, float]:
     """
     Computes validation loss for Deep Similarity Learning-based approach
     """
@@ -157,13 +309,17 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
         computed_embed_batches_valid = []
         computed_embed_labels_valid = []
 
-        for batch_i, (a, p, n) in enumerate(train_valid_loader):
+        for batch_i, (a, p, n) in enumerate(tqdm(train_valid_loader,
+                                            total=len(train_valid_loader),
+                                            desc="Type Cluster - Train set")):
             #a_id, a_tok, a_cm, a_avl = a[0]
             output_a = main_model_forward(*(s.to(DEVICE) for s in a[0]))
             computed_embed_batches_train.append(output_a.data.cpu().numpy())
             computed_embed_labels_train.append(a[1].data.cpu().numpy())
         
-        for batch_i, (anchor, positive_ex, negative_ex) in enumerate(valid_data_loader):
+        for batch_i, (anchor, positive_ex, negative_ex) in enumerate(tqdm(valid_data_loader,
+                                                                     total=len(valid_data_loader),
+                                                                     desc="Type Cluster - Valid set")):
             positive_ex, _ = positive_ex[0], positive_ex[1]
             negative_ex, _ = negative_ex[0], negative_ex[1]
 
@@ -175,61 +331,44 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
             computed_embed_batches_valid.append(output_a.data.cpu().numpy())
             computed_embed_labels_valid.append(anchor[1].data.cpu().numpy())
 
-        annoy_index = create_knn_index(np.vstack(computed_embed_batches_train), None, computed_embed_batches_train[0].shape[1], 20)
+        annoy_index = create_knn_index(np.vstack(computed_embed_batches_train), None, computed_embed_batches_train[0].shape[1])
         pred_valid_embed, _ = pred_func(np.vstack(computed_embed_batches_valid), np.hstack(computed_embed_labels_train),
                                                                 annoy_index, 10)
-        acc_all, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
-                                                           common_types, 10)
-        logger.info("E-All: %.2f | E-Comm: %.2f | E-rare: %.2f" % (acc_all, acc_common, acc_rare))
+        acc_all, acc_ubiq, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
+                                                              ubiquitous_types, common_types, 10)
+        logger.info("E-All: %.2f | E-Ubiq: %.2f | E-Comm: %.2f | E-Rare: %.2f" % (acc_all, acc_ubiq, acc_common, acc_rare))
 
     return valid_total_loss, acc_all
 
-def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
+def train(output_path: str, data_loading_funcs: dict, model_params_path=None, validation:bool=False):
     
-    logger.info(f"Training Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"Training Type4Py model")
     logger.info(f"***********************************************************************")
-    # Loading dataset
-    load_data_t = time()
-    X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
-    X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
-    Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
-    logger.info("Loaded train and valid sets in %.2f min" % ((time()-load_data_t) / 60))
+   
+    # Model's hyper parameters
+    model_params = load_model_params(model_params_path)
+    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+                                                                        model_params['batches'],
+                                                                        no_workers=cpu_count()//2)
 
-    logger.info(f"No. of training samples: {len(X_id_train):,}")
-    logger.info(f"No. of validation samples: {len(X_id_valid):,}")
+    # Loading label encoder and finding ubiquitous & common types
+    le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
+    count_types = Counter(train_data_loader.dataset.labels.data.numpy())
+    common_types = [t.item() for t in train_data_loader.dataset.labels if count_types[t.item()] >= 100]
+    ubiquitous_types = set(le_all.transform(['str', 'int', 'list', 'bool', 'float']))
+    common_types = set(common_types) - ubiquitous_types
 
-    # Select data points which has at least frequency of 3 or more (for similarity learning)
-    train_mask = select_data(Y_all_train, 3)
-    X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
-                X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
-
-    valid_mask = select_data(Y_all_valid, 3)
-    X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
-                X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
-
-    count_types = Counter(Y_all_train.data.numpy())
-    common_types = [t.item() for t in Y_all_train if count_types[t.item()] >= 100]
-    logger.info("Percentage of common types: %.2f%%" % (len(common_types) / Y_all_train.shape[0]*100.0))
-    common_types = set(common_types)
+    logger.info("Percentage of ubiquitous types: %.2f%%" % (len([t.item() for t in \
+        train_data_loader.dataset.labels if t.item() in ubiquitous_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
+    logger.info("Percentage of common types: %.2f%%" % (len([t.item() for t in \
+        train_data_loader.dataset.labels if t.item() in common_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
 
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
 
-    # Model's hyper parameters
-    model_params = load_model_params(model_params_path)
-
-    # Batch loaders
-    train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \
-                          labels=Y_all_train, dataset_name=data_loading_funcs['name'], train_mode=True), \
-                          batch_size=model_params['batches'], shuffle=True, pin_memory=True,
-                          num_workers=4)
-    valid_loader = DataLoader(TripletDataset(X_id_valid, X_tok_valid, X_type_valid, \
-                            labels=Y_all_valid, dataset_name=data_loading_funcs['name'], \
-                                            train_mode=True), batch_size=model_params['batches'], num_workers=4)
-
     # Loading the model
-    model = Type4Py(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
-                    model_params['output_size'], model_params['dr']).to(DEVICE)
+    model = load_model(data_loading_funcs['name'], model_params)
+    logger.info(f"Intializing the {model.__class__.__name__} model")
     model = TripletModel(model).to(DEVICE)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -238,8 +377,9 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=model_params['lr'])
 
     train_t = time()
-    train_loop_dsl(model, criterion, optimizer, train_loader, valid_loader, model_params['lr'],
-                   model_params['epochs'], common_types, None)
+    train_loop_dsl(model, criterion, optimizer, train_data_loader,
+                   valid_data_loader if validation else None, model_params['lr'],
+                   model_params['epochs'], ubiquitous_types, common_types, None)
     logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
     # Saving the model

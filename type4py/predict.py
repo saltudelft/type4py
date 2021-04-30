@@ -1,7 +1,8 @@
-from type4py.data_loaders import select_data, TripletDataset
+from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
 from type4py.learn import load_model_params, TripletModel, create_knn_index
-from type4py import logger
-from typing import Tuple
+from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
+from libsa4py.utils import save_json
+from typing import Tuple, List
 from collections import defaultdict
 from os.path import join
 from time import time
@@ -9,6 +10,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from annoy import AnnoyIndex
 import numpy as np
+import pickle
+import re
 import torch
 
 logger.name = __name__
@@ -24,23 +27,77 @@ def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: n
         return sorted({t: s for t, s in types_score.items()}.items(), key=lambda kv: kv[1],
                       reverse=True)
 
-def predict_type_embed(types_embed_array: np.array, types_embed_labels: np.array, indexed_knn: AnnoyIndex,
-                       k: int) -> np.array:
+def predict_type_embed(types_embed_array: np.array, types_embed_labels: np.array, 
+                       indexed_knn: AnnoyIndex, k: int) -> List[dict]:
     """
     Predict type of given type embedding vectors
     """
 
     pred_types_embed = []
     pred_types_score = []
-    for embed_vec in tqdm(types_embed_array, total=len(types_embed_array), desc="Finding KNNs & Prediction"):
+    for i, embed_vec in enumerate(tqdm(types_embed_array, total=len(types_embed_array), desc="Finding KNNs & Prediction")):
         idx, dist = indexed_knn.get_nns_by_vector(embed_vec, k, include_distances=True)
         pred_idx_scores = compute_types_score(dist, idx, types_embed_labels)
         pred_types_embed.append([i for i, s in pred_idx_scores])
         pred_types_score.append(pred_idx_scores)
     
-    return np.array(pred_types_embed), pred_types_score
+    return pred_types_embed, pred_types_score
 
-def compute_type_embed_batch(model: TripletModel, data_loader: DataLoader) -> Tuple[np.array, np.array]:
+def predict_type_embed_task(types_embed_array: np.array, types_embed_labels: np.array, type_space_labels: np.array, 
+                            pred_task_idx: tuple, indexed_knn: AnnoyIndex, k: int) -> List[dict]:
+   
+    def find_pred_task(i: int):
+        if i < pred_task_idx[0]:
+            return 'Parameter'
+        elif i < pred_task_idx[1]:
+            return 'Return'
+        else:
+            return 'Variable'
+
+    pred_types: List[dict] = []
+    # pred_types_embed = []
+    # pred_types_score = []
+    for i, embed_vec in enumerate(tqdm(types_embed_array, total=len(types_embed_array), desc="Finding KNNs & Prediction")):
+        idx, dist = indexed_knn.get_nns_by_vector(embed_vec, k, include_distances=True)
+        pred_idx_scores = compute_types_score(dist, idx, type_space_labels)
+
+        pred_types.append({'original_type': types_embed_labels[i], 'predictions': pred_idx_scores,
+                           'task': find_pred_task(i), 'is_parametric': bool(re.match(r'(.+)\[(.+)\]', types_embed_labels[i]))})
+
+        # pred_types_embed.append([i for i, s in pred_idx_scores])
+        # pred_types_score.append(pred_idx_scores)
+    
+    return pred_types
+
+
+def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader: DataLoader):
+
+    computed_embed_labels = []
+    annoy_idx = AnnoyIndex(model.output_size, 'euclidean')
+    curr_idx = 0
+
+    for _, (a, _, _) in enumerate(tqdm(train_data_loader, total=len(train_data_loader), desc="Computing Type Clusters - Train set")):
+        model.eval()
+        with torch.no_grad():
+            output_a = model(*(s.to(DEVICE) for s in a[0]))
+            computed_embed_labels.append(a[1].data.cpu().numpy())
+            for v in output_a.data.cpu().numpy():
+                annoy_idx.add_item(curr_idx, v)
+                curr_idx += 1
+
+    for _, (a, _, _) in enumerate(tqdm(valid_data_loader, total=len(valid_data_loader), desc="Computing Type Clusters - Valid set")):
+        model.eval()
+        with torch.no_grad():
+            output_a = model(*(s.to(DEVICE) for s in a[0]))
+            computed_embed_labels.append(a[1].data.cpu().numpy())
+            for v in output_a.data.cpu().numpy():
+                annoy_idx.add_item(curr_idx, v)
+                curr_idx += 1
+
+    annoy_idx.build(KNN_TREE_SIZE)
+    return annoy_idx, np.hstack(computed_embed_labels)
+
+def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, np.array]:
     """
     Compute type embeddings for the whole dataset
     """
@@ -59,61 +116,38 @@ def compute_type_embed_batch(model: TripletModel, data_loader: DataLoader) -> Tu
 
 def test(output_path: str, data_loading_funcs: dict):
 
-    logger.info(f"Testing Type4Py model for {data_loading_funcs['name']} prediction task")
+    logger.info(f"Testing Type4Py model")
     logger.info(f"**********************************************************************")
     # Loading dataset
-    load_data_t = time()
-    X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
-    X_id_test, X_tok_test, X_type_test = data_loading_funcs['test'](output_path)
-    X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
-    Y_all_train, Y_all_valid, Y_all_test = data_loading_funcs['labels'](output_path)
-    logger.info("Loaded the dataset in %.2f min" % ((time()-load_data_t) / 60))
-
-    logger.info(f"No. of test samples: {len(X_id_test):,}")
-
-    # Select data points which has at least frequency of 3 or more (for similary learning)
-    train_mask = select_data(Y_all_train, 3)
-    X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
-                X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
-
-    valid_mask = select_data(Y_all_valid, 3)
-    X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
-                X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
-
-
+    logger.info("Loading train and test sets...")
+    
     # Model's hyper parameters
     model_params = load_model_params()
-
-    # Batch loaders
-    train_loader = DataLoader(TripletDataset(X_id_train, X_tok_train, X_type_train, \
-                          labels=Y_all_train, dataset_name=data_loading_funcs['name'], train_mode=True), \
-                          batch_size=model_params['batches'], shuffle=True, pin_memory=True,
-                          num_workers=4)
-    valid_loader = DataLoader(TripletDataset(X_id_valid, X_tok_valid, X_type_valid, \
-                            labels=Y_all_valid, dataset_name=data_loading_funcs['name'], \
-                                            train_mode=True), batch_size=model_params['batches'], num_workers=4)
-    test_loader = DataLoader(TripletDataset(X_id_test, X_tok_test, X_type_test, \
-                             labels=Y_all_test, dataset_name=data_loading_funcs['name'],
-                              train_mode=False), batch_size=model_params['batches'])
+    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+                                                                        model_params['batches_test'], train_mode=False)
 
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
-    logger.info("Loaded the pre-trained Type4Py model")
+    logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
 
-    # Create Type Clusters
-    train_type_embed, embed_train_labels = compute_type_embed_batch(model.model, train_loader)
-    valid_type_embed, embed_valid_labels = compute_type_embed_batch(model.model, valid_loader)
-    test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_loader)
-    annoy_index = create_knn_index(train_type_embed, valid_type_embed, train_type_embed.shape[1], 20)
+    annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader)
     logger.info("Created type clusters")
 
+    annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster"))
+    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"), embed_labels)
+    logger.info("Saved type clusters")
+
+    test_data_loader, t_idx = load_test_data_per_model(data_loading_funcs, output_path, model_params['batches_test'])
+    logger.info("Mapping test samples to type clusters")
+    test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_data_loader)
+    
     # Perform KNN search and predict
     logger.info("Performing KNN search")
-    pred_test_embed, pred_test_score = predict_type_embed(test_type_embed,
-                                                          np.concatenate((embed_train_labels, embed_valid_labels)),
-                                                          annoy_index, model_params['k'])
+    le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
+    train_valid_labels = le_all.inverse_transform(embed_labels)
+    embed_test_labels = le_all.inverse_transform(embed_test_labels)
+    pred_types = predict_type_embed_task(test_type_embed, embed_test_labels,
+                                                          train_valid_labels,
+                                                          t_idx, annoy_index, model_params['k'])
     
-    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_pred.npy"),
-            pred_test_embed)
-    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"),
-            embed_test_labels)
+    save_json(join(output_path, f"type4py_{data_loading_funcs['name']}_test_predictions.json"), pred_types)
     logger.info("Saved the Type4Py model's predictions on the disk")
