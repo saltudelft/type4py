@@ -57,6 +57,7 @@ def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
     import libcst as cst
     # Problematic patterns: (?<=.*)Tuple\[Any, *?.*?\](?<=.*)
     # TODO: Handle a case like Dict[str, any] -> Dict[str, Any]
+    # TODO: Convert unknown to Any
     type_aliases = {'^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
                     '^Set$|(?<=.*)Set\[\](?<=.*)|^Set\[Any\]$': 'set',
                     '^Tuple$|(?<=.*)Tuple\[\](?<=.*)|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple\[unknown, *?unknown\]$|^Tuple\[unknown, *?Any\]$|(?<=.*)tuple\[\](?<=.*)': 'tuple',

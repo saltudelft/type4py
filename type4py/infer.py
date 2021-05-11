@@ -1,0 +1,627 @@
+"""
+This module loads the pre-trained Type4Py model to infer type annotations for a given source file.
+"""
+
+from typing import List, Tuple
+from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
+from type4py.learn import load_model_params
+from type4py.predict import compute_types_score
+from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
+from type4py.type_check import MypyManager, type_check_single_file
+from libsa4py.cst_extractor import Extractor
+from libsa4py.representations import ModuleInfo
+from libsa4py.nl_preprocessing import NLPreprocessor
+from libsa4py.cst_transformers import TypeAnnotationRemover, TypeApplier
+from libsa4py.cst_visitor import Visitor
+from libsa4py.utils import read_file, save_json, write_file
+from libcst.metadata import MetadataWrapper, TypeInferenceProvider
+from libcst import parse_module
+from annoy import AnnoyIndex
+from os.path import basename, join, splitext, dirname
+from enum import Enum
+from gensim.models import Word2Vec
+from tqdm import tqdm
+import pandas as pd
+import numpy as np
+import pickle
+import regex
+import torch
+
+logger.name = __name__
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+OUTPUT_FILE_SUFFIX = "_type4py_typed.py"
+
+class PretrainedType4Py:
+    def __init__(self, type4py_model, type4py_model_params, w2v_model, type_clusters_idx,
+                 type_clusers_labels, label_enc):
+        self.type4py_model = type4py_model
+        self.type4py_model_params = type4py_model_params
+        self.w2v_model = w2v_model
+        self.type_clusters_idx = type_clusters_idx
+        self.type_clusters_labels = type_clusers_labels
+        self.label_enc = label_enc
+
+def load_pretrained_model(pre_trained_model_path):
+    """
+    Loads the pre-trained Type4Py model, type clusters and other required files for inference
+    """
+
+    model = torch.load(join(pre_trained_model_path, f"type4py_complete_model.pt"))
+    model_params = load_model_params()
+    logger.info(f"Loaded the pre-trained Type4Py model")
+
+    w2v_model = Word2Vec.load(join(pre_trained_model_path, 'w2v_token_model.bin'))
+    logger.info(f"Loaded the pre-trained W2V model")
+
+    type_cluster_index = AnnoyIndex(model_params['output_size'], 'euclidean')
+    type_cluster_index.load(join(pre_trained_model_path, "type4py_complete_type_cluster"))
+    types_embed_labels = np.load(join(pre_trained_model_path, f"type4py_complete_true.npy"))
+    le_all = pickle.load(open(join(pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
+    logger.info(f"Loaded the Type Clusters")
+
+    return PretrainedType4Py(model, model_params, w2v_model, type_cluster_index, types_embed_labels, le_all)
+
+def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> ModuleInfo:
+    """
+    Removes pre-existing type annotations from a source file
+    """
+
+    v = Visitor()
+    if remove_preexisting_type_annot:
+        mw = MetadataWrapper(parse_module(src_f).visit(TypeAnnotationRemover()),
+                         cache={TypeInferenceProvider: {'types':[]}})
+    else:
+        mw = MetadataWrapper(parse_module(src_f),
+                         cache={TypeInferenceProvider: {'types':[]}})
+    mw.visit(v)
+
+    return ModuleInfo(v.imports, v.module_variables, v.module_variables_use, v.cls_list, v.fns,
+                      '', '', v.module_no_types, v.module_type_annot_cove)
+
+def type_embed_single_dp(model, *input_tensor):
+    """
+    Gives a type embedding for a single test datapoint.
+    """
+    model.eval()
+    with torch.no_grad():
+        return model(*(i.to(DEVICE) for i in input_tensor)).data.cpu().numpy().reshape(-1,1)
+
+def infer_single_dp(type_cluster_idx: AnnoyIndex, k:int, types_embed_labels:np.array,
+                    type_embed_vec: np.array):
+    """
+    Infers a list of likely types for a single test datapoint.
+    """
+    idx, dist = type_cluster_idx.get_nns_by_vector(type_embed_vec, k, include_distances=True)
+    return compute_types_score(dist, idx, types_embed_labels)
+
+def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array:
+    """
+    Converts a variable to its type embedding
+    """
+    df_var = pd.DataFrame([[var_name, var_occur, AVAILABLE_TYPES_NUMBER-1]],
+                          columns=['var_name', 'var_occur', 'var_aval_enc'])
+    id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
+
+    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+                            axis=0)).float()
+
+    code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+                                row.var_occur, None, None), axis=1)
+    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
+    vth_dp = torch.from_numpy(np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
+                                        axis=1), axis=0)).float()
+    
+    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+
+def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
+    """
+    Converts a function argument to its type embedding
+    """
+    df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
+                          columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
+    id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
+                                                          row.func_name, None), axis=1)
+
+    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+                            axis=0)).float()
+
+    code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+                                                           row.arg_occur, None, None), axis=1)
+    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
+    vth_dp = torch.from_numpy(np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
+                                        axis=1), axis=0)).float()
+    
+    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+
+def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
+    """
+    Converts a function return to its type embedding
+    """
+    df_ret = pd.DataFrame([[r for r in ret_hints] + [AVAILABLE_TYPES_NUMBER-1]],
+                          columns=['func_name', 'arg_names', 'ret_expr_seq', 'ret_aval_enc'])
+    id_dp = df_ret.apply(lambda row: IdentifierSequence(w2v_model, None, row.arg_names, row.func_name,
+                          None), axis=1)
+
+    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+                            axis=0)).float()
+
+    code_tks_dp = df_ret.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1], None,
+                                                         row.ret_expr_seq, None), axis=1)
+    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
+    vth_dp = torch.from_numpy(np.stack(df_ret.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.ret_aval_enc),
+                                        axis=1), axis=0)).float()
+    
+    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+
+def apply_inferred_types(in_src_f: str, in_src_f_dict: dict, out_src_f_path: str):
+    """
+    Applies inffered type annototations to the source file
+    """
+
+    f_parsed = MetadataWrapper(parse_module(in_src_f)).visit(TypeApplier(in_src_f_dict, apply_nlp=False))
+    write_file(out_src_f_path, f_parsed.code)
+
+
+def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict:
+    """
+    Infers type annotations for the whole source code file
+    """
+
+    nlp_prep = NLPreprocessor()
+    # Storing Type4Py's predictions
+    src_f_ext['variables_p'] = {}
+    for m_v, m_v_o in tqdm(zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()), 
+                           total=len(src_f_ext['variables']), desc="[module][vars]"):
+        
+        var_type_embed = var2vec(nlp_prep.process_identifier(m_v),
+                                 str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
+                                  pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+        # The type of module-level vars   
+        src_f_ext['variables_p'][m_v] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                           pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, var_type_embed)]))
+
+            
+    for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
+        fn_n = nlp_prep.process_identifier(fn['name'])
+        fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', 'kwargs'}]
+        fn['params_p'] = {'args': [], 'kwargs': []}
+        for o_p, p, p_o in fn_p:
+            param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+                                         fn_n, p, " ".join([p[1] for p in fn_p]),
+                                         str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
+            # The type of arguments for module-level functions
+            src_f_ext['funcs'][i]['params_p'][o_p] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                    pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, param_type_embed)]))
+
+        # The type of local variables for module-level functions
+        fn['variables_p'] = {}
+        for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
+            var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+                                    str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                                    pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+            src_f_ext['funcs'][i]['variables_p'][fn_v] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                         pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, var_type_embed)]))
+
+        # The return type for module-level functions
+        if src_f_ext['funcs'][i]['ret_exprs'] != []:
+            src_f_ext['funcs'][i]['ret_type_p'] = {}
+            ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+                                    " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]))
+            
+            src_f_ext['funcs'][i]['ret_type_p'] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                    pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, ret_type_embed)]))
+    
+    # The type of class-level vars
+    for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
+        c['variables_p'] = {}
+        for c_v, c_v_o in zip(c['variables'], c['cls_var_occur'].values()):
+            cls_var_type_embed = var2vec(nlp_prep.process_identifier(c_v),
+                                 str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
+                                 pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+  
+            src_f_ext['classes'][c_i]['variables_p'][c_v] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                           pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, cls_var_type_embed)]))
+
+        # The type of arguments for class-level functions
+        for fn_i, fn in enumerate(c['funcs']):
+            fn_n = nlp_prep.process_identifier(fn['name'])
+            fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', \
+                    'kwargs', 'self'}]
+            #fn_p = [nlp_prep.process_identifier(n) for n in fn['params'] if n != 'self']
+            fn["params_p"] = {'self': [], 'args': [], 'kwargs': []}
+            for o_p, p, p_o in fn_p:
+                param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+                                            fn_n, p, " ".join([p[1] for p in fn_p]),
+                                            str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
+                
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                                           pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, param_type_embed)]))
+
+            # The type of local variables for class-level functions
+            fn['variables_p'] = {}
+            for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
+                var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+                                    str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                                    pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                                               pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, var_type_embed)]))
+                
+            # The return type for class-level functions
+            if src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_exprs'] != []:
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = {}
+                ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+                                        " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]))
+                
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = list(pre_trained_m.label_enc.inverse_transform([p for p,s in infer_single_dp(pre_trained_m.type_clusters_idx,
+                                                                        pre_trained_m.type4py_model_params['k'], pre_trained_m.type_clusters_labels, ret_type_embed)]))
+
+    return src_f_ext
+
+
+class PredictionType(Enum):
+    # Case 1: Type4Py's prediction is equal to ground truth
+    p_equal_gt = 1
+    # Case 2: Type4Py's prediction is NOT equal to ground truth
+    p_not_equal_gt = 2
+    # Case 3: Type4Py predicts while there is no ground truth
+    p_wo_gt = 3
+
+
+def type_check_pred(src_f_r: str, src_f_o_path: str, src_f_ext: dict,
+                    tc: MypyManager, pred: str, true: str) -> Tuple[bool, PredictionType]:
+    """
+    Type checks a prediction
+    """
+    apply_inferred_types(src_f_r, src_f_ext, src_f_o_path)
+    #print(read_file(src_f_o_path))
+    type_checked = type_check_single_file(src_f_o_path, tc)
+
+    if pred == true:
+        return type_checked, PredictionType.p_equal_gt
+    elif true == "":
+        return type_checked, PredictionType.p_wo_gt
+    else:
+        return type_checked, PredictionType.p_not_equal_gt
+
+def type_check_inferred_types(src_f_ext: dict, src_f_read: str, src_f_o_path):
+
+    mypy_tc = MypyManager('mypy', 20)
+    preds_type_checked: Tuple[bool, PredictionType] = []
+
+    for m_v, m_v_t in tqdm(src_f_ext['variables'].items()):
+        # The predictions for module-level vars   
+        for p in src_f_ext['variables_p'][m_v]:
+            src_f_ext['variables'][m_v] = p
+            is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, m_v_t)
+            preds_type_checked.append((is_tc, p_type))
+            if is_tc:
+                break
+            else:
+                src_f_ext['variables'][m_v] = m_v_t
+            
+    for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
+        for p_n, p_t in fn['params'].items():
+            # The predictions for arguments for module-level functions
+            for p in fn['params_p'][p_n]:
+                src_f_ext['funcs'][i]['params'][p_n] = p
+                is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, p_t)
+                preds_type_checked.append((is_tc, p_type))
+                if is_tc:
+                    break
+                else:
+                    src_f_ext['funcs'][i]['params'][p_n] = p_t
+
+        # The predictions local variables for module-level functions
+        for fn_v, fn_v_t in fn['variables'].items():
+            for p in fn['variables_p'][fn_v]:
+                src_f_ext['funcs'][i]['variables'][fn_v] = p
+                is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, fn_v_t)
+                preds_type_checked.append((is_tc, p_type))
+                if is_tc:
+                    break
+                else:
+                    src_f_ext['funcs'][i]['variables'][fn_v] = fn_v_t
+            
+        # The return type for module-level functions
+        org_t = src_f_ext['funcs'][i]['ret_type']
+        for p in src_f_ext['funcs'][i]['ret_type_p']:
+            src_f_ext['funcs'][i]['ret_type'] = p
+            is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, org_t)
+            preds_type_checked.append((is_tc, p_type))
+            if is_tc:
+                break
+            else:
+                src_f_ext['funcs'][i]['ret_type'] = org_t
+
+    # The type of class-level vars
+    for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
+        for c_v, c_v_t in c['variables'].items():
+            for p in c['variables_p'][c_v]:
+                src_f_ext['classes'][c_i]['variables'][c_v] = p
+                is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, c_v_t)
+                preds_type_checked.append((is_tc, p_type))
+                if is_tc:
+                    break
+                else:
+                    src_f_ext['classes'][c_i]['variables'][c_v] = c_v_t
+
+        # The type of arguments for class-level functions
+        for fn_i, fn in enumerate(c['funcs']):
+            for p_n, p_t in fn["params"].items():
+                for p in fn["params_p"][p_n]:
+                    src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][p_n] = p
+                    is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, p_t)
+                    preds_type_checked.append((is_tc, p_type))
+                    if is_tc:
+                        break
+                    else:
+                        src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][p_n] = p_t
+
+            # The type of local variables for class-level functions
+            for fn_v, fn_v_t in fn['variables'].items():
+                for p in fn['variables_p'][fn_v]:
+                    src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = p
+                    is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, fn_v_t)
+                    preds_type_checked.append((is_tc, p_type))
+                    if is_tc:
+                        break
+                    else:
+                        src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = fn_v_t
+
+            # The return type for class-level functions
+            org_t = src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type']
+            for p in src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p']:
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = p
+                is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, org_t)
+                preds_type_checked.append((is_tc, p_type))
+                if is_tc:
+                    break
+                else:
+                    src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = org_t
+    
+    apply_inferred_types(src_f_read, src_f_ext, src_f_o_path)
+    report_type_check_preds(preds_type_checked)
+
+def report_type_check_preds(type_check_preds: List[Tuple[bool, PredictionType]]):
+
+    no_p_equal_gt = 0
+    no_p_equal_gt_tc = 0
+    no_p_not_equal_gt = 0
+    no_p_not_equal_gt_tc = 0
+    no_p_wo_gt = 0
+    no_p_wo_gt_tc = 0
+
+    for is_tc, p_t in type_check_preds:
+        if p_t == PredictionType.p_equal_gt:
+            no_p_equal_gt += 1
+            if is_tc:
+                no_p_equal_gt_tc += 1
+        elif p_t == PredictionType.p_not_equal_gt:
+            no_p_not_equal_gt += 1
+            if is_tc:
+                no_p_not_equal_gt_tc += 1
+        elif p_t == PredictionType.p_wo_gt:
+            no_p_wo_gt += 1
+            if is_tc:
+                no_p_wo_gt_tc += 1
+
+    if no_p_equal_gt != 0:
+        logger.info(f"g -> (p==g) {no_p_equal_gt_tc/no_p_equal_gt:.2f}")
+    if no_p_not_equal_gt != 0:
+        logger.info(f"g -> (p!=g) {no_p_not_equal_gt_tc/no_p_not_equal_gt:.2f}")
+    if no_p_wo_gt != 0:
+        logger.info(f"e -> p {no_p_wo_gt_tc/no_p_wo_gt:.2f}")
+
+
+def type_annotate_file(pre_trained_model_path: str, source_file_path: str):
+    
+    logger.info(f"Inferring types for the file '{basename(source_file_path)}'' using the Type4Py pretrained model")
+    logger.info(f"*************************************************************************")
+
+    pre_trained_m = load_pretrained_model(pre_trained_model_path)
+
+    src_f_read = read_file(source_file_path)
+    src_f_ext = analyze_src_f(src_f_read).to_dict()
+    logger.info("Extracted type hints and JSON-representation of input source file")
+
+    logger.info("Predicting type annotations for the given file:")
+    src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
+
+    save_json(join(pre_trained_model_path, splitext(basename(source_file_path))[0]+"_typed.json"), src_f_ext)
+
+    type_check_inferred_types(src_f_ext, src_f_read, join(dirname(source_file_path),
+                              splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX))
+
+    # model = torch.load(join(pre_trained_model_path, f"type4py_complete_model.pt"))
+    # model_params = load_model_params()
+    # logger.info(f"Loaded the pre-trained Type4Py model")
+
+    # w2v_model = Word2Vec.load(join(pre_trained_model_path, 'w2v_token_model.bin'))
+    # logger.info(f"Loaded the pre-trained W2V model")
+
+    # type_cluster_index = AnnoyIndex(model_params['output_size'], 'euclidean')
+    # type_cluster_index.load(join(pre_trained_model_path, "type4py_complete_type_cluster"))
+    # types_embed_labels = np.load(join(pre_trained_model_path, f"type4py_complete_true.npy"))
+    # le_all = pickle.load(open(join(pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
+    # logger.info(f"Loaded the Type Clusters")
+
+    # mypy_tc = MypyManager('mypy', 20)
+    # src_f_no_type_err = mypy_tc.heavy_assess(source_file_path).no_type_errs
+
+    # src_f_read = read_file(source_file_path)
+    # src_f_ext = analyze_src_f(src_f_read).to_dict()
+    # logger.info("Extracted type hints and JSON-representation of input source file")
+
+    # preds_type_checked: Tuple[bool, PredictionType] = []
+
+    # nlp_prep = NLPreprocessor()
+    # for m_v, m_v_o in tqdm(zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()), 
+    #                        total=len(src_f_ext['variables']), desc="[module][vars]"):
+        
+    #     var_type_embed = var2vec(nlp_prep.process_identifier(m_v),
+    #                              str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
+    #                              w2v_model, model)
+    #     org_t = src_f_ext['variables'][m_v]
+
+    #     # The type of module-level vars   
+    #     for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                     types_embed_labels, var_type_embed)])):
+    #         src_f_ext['variables'][m_v] = p
+    #         is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                         splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #         preds_type_checked.append((is_tc, p_type))
+    #         if is_tc:
+    #             break
+    #         else:
+    #             src_f_ext['variables'][m_v] = org_t
+            
+    # for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
+    #     fn_n = nlp_prep.process_identifier(fn['name'])
+    #     fn_p = [nlp_prep.process_identifier(n) for n in fn['params']]
+    #     for o_p, p, p_o in zip(fn["params_occur"].keys(), fn_p, fn["params_occur"].values()):
+    #         param_type_embed = param2vec(w2v_model, model,
+    #                                      fn_n, p, " ".join(fn_p),
+    #                                      str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
+    #         # The type of arguments for module-level functions
+    #         org_t = src_f_ext['funcs'][i]['params'][o_p]
+    #         for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                                 types_embed_labels, param_type_embed)])):
+    #             src_f_ext['funcs'][i]['params'][o_p] = p
+    #             is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                         splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #             preds_type_checked.append((is_tc, p_type))
+    #             if is_tc:
+    #                 break
+    #             else:
+    #                 src_f_ext['funcs'][i]['params'][o_p] = org_t
+
+    #         # print("MOD fn:", fn['name'], "Param:", p , le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #         #                                          types_embed_labels, param_type_embed)]))
+    #     # The type of local variables for module-level functions
+    #     for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
+    #         var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+    #                                 str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+    #                                 w2v_model, model)
+
+    #         org_t = src_f_ext['funcs'][i]['variables'][fn_v]
+    #         for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                         types_embed_labels, var_type_embed)])):
+    #             src_f_ext['funcs'][i]['variables'][fn_v] = p
+    #             is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                         splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #             preds_type_checked.append((is_tc, p_type))
+    #             if is_tc:
+    #                 break
+    #             else:
+    #                 src_f_ext['funcs'][i]['variables'][fn_v] = org_t
+    #         # print("MOD FN Var", le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #         #                                 types_embed_labels, var_type_embed)]))
+
+    #     # The return type for module-level functions
+    #     ret_type_embed = ret2vec(w2v_model, model, fn_n, fn_p,
+    #                              " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]))
+        
+    #     org_t = src_f_ext['funcs'][i]['ret_type']
+    #     for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                            types_embed_labels, ret_type_embed)])):
+    #         src_f_ext['funcs'][i]['ret_type'] = p
+    #         is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                     splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #         preds_type_checked.append((is_tc, p_type))
+    #         if is_tc:
+    #             break
+    #         else:
+    #             src_f_ext['funcs'][i]['ret_type'] = org_t
+    #     # print("[Return] MOD fn:", fn['name'], le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #     #                                                    types_embed_labels, ret_type_embed)]))
+
+    # # The type of class-level vars
+    # for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
+    #     for c_v, c_v_o in zip(c['variables'], c['cls_var_occur'].values()):
+    #         cls_var_type_embed = var2vec(nlp_prep.process_identifier(c_v),
+    #                              str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
+    #                              w2v_model, model)
+
+    #         org_t = src_f_ext['classes'][c_i]['variables'][c_v]
+    #         for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                     types_embed_labels, cls_var_type_embed)])):    
+    #             src_f_ext['classes'][c_i]['variables'][c_v] = p
+    #             is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                         splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #             preds_type_checked.append((is_tc, p_type))
+    #             if is_tc:
+    #                 break
+    #             else:
+    #                 src_f_ext['classes'][c_i]['variables'][c_v] = org_t
+    #         # print("Class", c['name'], "var", c_v, le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #         #                             types_embed_labels, cls_var_type_embed)]))
+
+    #     # The type of arguments for class-level functions
+    #     for fn_i, fn in enumerate(c['funcs']):
+    #         fn_n = nlp_prep.process_identifier(fn['name'])
+    #         fn_p = [nlp_prep.process_identifier(n) for n in fn['params'] if n != 'self']
+    #         for o_p, p, p_o in zip(list(fn["params"].keys())[len(fn["params"])-len(fn_p):], fn_p,
+    #                                list(fn["params_occur"].values())[len(fn["params"])-len(fn_p):]):
+    #             param_type_embed = param2vec(w2v_model, model,
+    #                                         fn_n, p, " ".join(fn_p),
+    #                                         str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
+                
+    #             org_t = src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][o_p]
+    #             for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index,
+    #                                                     model_params['k'], types_embed_labels, param_type_embed)])):
+    #                 src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][o_p] = p
+    #                 is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                             splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #                 preds_type_checked.append((is_tc, p_type))
+    #                 if is_tc:
+    #                     break
+    #                 else:
+    #                     src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][o_p] = org_t
+    #             # print("fn:", fn['name'], "Param:", p , le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #             #                                         types_embed_labels, param_type_embed)]))
+
+    #         # The type of local variables for class-level functions
+    #         for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
+    #             var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+    #                                 str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+    #                                 w2v_model, model)
+
+    #             org_t = src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v]
+    #             for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index,
+    #                                                     model_params['k'], types_embed_labels, var_type_embed)])):
+    #                 src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = p
+    #                 is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                             splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #                 preds_type_checked.append((is_tc, p_type))
+    #                 if is_tc:
+    #                     break
+    #                 else:
+    #                     src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = org_t
+    #             # print("CLS FN Var", fn_v, le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #             #                                 types_embed_labels, var_type_embed)]))
+
+    #         # The return type for class-level functions
+    #         ret_type_embed = ret2vec(w2v_model, model, fn_n, fn_p,
+    #                                 " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]))
+            
+            
+    #         org_t = src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type']
+    #         for p in list(le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #                                                                             types_embed_labels, ret_type_embed)])):
+    #             src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = p
+    #             is_tc, p_type = type_check_pred(src_f_read, join(dirname(source_file_path),
+    #                         splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX), src_f_ext, mypy_tc, p, org_t)
+    #             preds_type_checked.append((is_tc, p_type))
+    #             if is_tc:
+    #                 break
+    #             else:
+    #                 src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = org_t
+    #         # print("[Return] fn:", fn['name'], le_all.inverse_transform([p for p,s in infer_single_dp(type_cluster_index, model_params['k'],
+    #         #                                                 types_embed_labels, ret_type_embed)]))
+    
+    # apply_inferred_types(src_f_read, src_f_ext, join(dirname(source_file_path),
+    #                      splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX))
+    # report_type_check_preds(preds_type_checked)
+    # save_json(join(pre_trained_model_path, splitext(basename(source_file_path))[0]+"_typed.json"), src_f_ext)

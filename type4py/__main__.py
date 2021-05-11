@@ -87,6 +87,12 @@ def eval(args):
     else:
         evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp)
 
+def infer(args):
+    from type4py.infer import type_annotate_file
+    setup_logs_file(args.m, 'infer')
+    type_annotate_file(args.m, args.f)
+
+
 def main():
     arg_parser = argparse.ArgumentParser()
     sub_parsers = arg_parser.add_subparsers(dest='cmd')
@@ -144,6 +150,12 @@ def main():
     # eval_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
     eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
     eval_parser.set_defaults(func=eval)
+
+    # Inference
+    infer_parser = sub_parsers.add_parser('infer')
+    infer_parser.add_argument('--m', '--model', required=True, type=str, help="Path to the pre-trained Type4Py model")
+    infer_parser.add_argument('--f', '--file', required=True, type=str, help="Path to the input source file for inference")
+    infer_parser.set_defaults(func=infer)
 
     args = arg_parser.parse_args()
     args.func(args)
