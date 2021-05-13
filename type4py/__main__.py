@@ -88,9 +88,9 @@ def eval(args):
         evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp)
 
 def infer(args):
-    from type4py.infer import type_annotate_file
+    from type4py.infer import infer_main
     setup_logs_file(args.m, 'infer')
-    type_annotate_file(args.m, args.f)
+    infer_main(args.m, args.f)
 
 
 def main():
