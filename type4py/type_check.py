@@ -119,7 +119,7 @@ class TCManager(ABC):
 class MypyManager(TCManager):
     def _build_tc_cmd(self, fpath):
         # Mypy needs a flag to display the error codes
-        return ["mypy", "--show-error-codes", fpath]
+        return ["mypy", "--show-error-codes", "--no-incremental", "--cache-dir=/dev/null", fpath]
 
     def _check_tc_outcome(self, _, outlines):
         if any(l.endswith(err) for l in outlines for err in self._inc_errcodes):
