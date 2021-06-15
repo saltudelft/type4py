@@ -56,9 +56,8 @@ def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
     """
     import libcst as cst
     # Problematic patterns: (?<=.*)Tuple\[Any, *?.*?\](?<=.*)
-    # TODO: Handle a case like Dict[str, any] -> Dict[str, Any]
-    # TODO: Convert unknown to Any
-    type_aliases = {'^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
+    type_aliases = {'(?<=.*)any(?<=.*)|(?<=.*)unknown(?<=.*)': 'Any',
+                    '^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
                     '^Set$|(?<=.*)Set\[\](?<=.*)|^Set\[Any\]$': 'set',
                     '^Tuple$|(?<=.*)Tuple\[\](?<=.*)|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple\[unknown, *?unknown\]$|^Tuple\[unknown, *?Any\]$|(?<=.*)tuple\[\](?<=.*)': 'tuple',
                     '^Tuple\[(.+), *?\.\.\.\]$': r'Tuple[\1]',
@@ -74,7 +73,6 @@ def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
                     '(?<=.*)Match[Any](?<=.*)': 'Match'}
 
     def resolve_type_alias(t: str):
-        org_t = t
         for t_alias in type_aliases:
             if regex.search(regex.compile(t_alias), t):
                 t = regex.sub(regex.compile(t_alias), type_aliases[t_alias], t)
@@ -289,15 +287,21 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     Applies preprocessing steps to the extracted functions
     """
 
-    logger.info("Merging JSON projects")
-    merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
-    logger.info("Creating functions' Dataframe")
-    create_dataframe_fns(output_dir, merged_jsons)
-    logger.info("Creating variables' Dataframe")
-    create_dataframe_vars(output_dir, merged_jsons)
+    if not (os.path.exists(os.path.join(output_dir, "all_fns.csv")) and os.path.exists(os.path.join(output_dir, "all_vars.csv"))):
+        logger.info("Merging JSON projects")
+        merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
+        logger.info("Creating functions' Dataframe")
+        create_dataframe_fns(output_dir, merged_jsons)
+        logger.info("Creating variables' Dataframe")
+        create_dataframe_vars(output_dir, merged_jsons)
+        
     logger.info("Loading vars & fns Dataframe")
     processed_proj_fns = pd.read_csv(os.path.join(output_dir, "all_fns.csv"), low_memory=False)
     processed_proj_vars = pd.read_csv(os.path.join(output_dir, "all_vars.csv"), low_memory=False)
+
+    logger.info("Removing fns & vars wo/ a pre-defined set")
+    processed_proj_fns = processed_proj_fns[processed_proj_fns['set'].notnull()]
+    processed_proj_vars = processed_proj_vars[processed_proj_vars['set'].notnull()]
 
     # Split the processed files into train, validation and test sets
     if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])) and \

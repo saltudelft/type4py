@@ -188,7 +188,7 @@ def evaluate(output_path: str, data_name: str, tasks: str, top_n: int=10):
     # Loading label encoder andd common types
     test_pred = load_json(join(output_path, f'type4py_{data_name}_test_predictions.json'))
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
-    common_types = pickle.load(open(join(output_path, "combined_common_types.pkl"), 'rb'))
+    common_types = pickle.load(open(join(output_path, "complete_common_types.pkl"), 'rb'))
     common_types = set(le_all.inverse_transform(list(common_types)))
     ubiquitous_types = {'str', 'int', 'list', 'bool', 'float'}
     common_types = common_types - ubiquitous_types
