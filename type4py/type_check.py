@@ -1,6 +1,6 @@
 """
 This module contais helper classes to staticly type-check source files using mypy.
-It is written inspired by:
+It is written and inspired by:
 https://github.com/typilus/typilus/blob/e2aec24d94f10e58b3542c04be7fcf5640a1762b/exp/type_check/tcmanager.py
 MIT License
 """
