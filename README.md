@@ -4,6 +4,7 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Dataset](#dataset)
 - [Installation Guide](#installation-guide)
 - [Usage Guide](#usage-guide)
+- [Converting Type4Py to ONNX](#converting-type4py-to-onnx)
 - [Citing Type4Py](#citing-type4py)
 
 # Dataset
@@ -78,6 +79,9 @@ Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
 - `--c`: Evaluates the complete model. Use `type4py eval -h` to see other configurations.
 - `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
+
+# Converting Type4Py to ONNX
+
 
 # Citing Type4Py
 

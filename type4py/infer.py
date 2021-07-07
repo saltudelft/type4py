@@ -3,6 +3,7 @@ This module loads the pre-trained Type4Py model to infer type annotations for a 
 """
 
 from typing import List, Optional, Tuple
+from torch._C import dtype
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
 from type4py.learn import load_model_params
 from type4py.predict import compute_types_score
@@ -28,9 +29,10 @@ import pickle
 import os
 import regex
 import torch
+import onnxruntime
 
 logger.name = __name__
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 OUTPUT_FILE_SUFFIX = "_type4py_typed.py"
 
 class PretrainedType4Py:
@@ -54,7 +56,8 @@ class PretrainedType4Py:
         self.label_enc = None
 
     def load_pretrained_model(self):
-        self.type4py_model = torch.load(join(self.pre_trained_model_path, f"type4py_complete_model.pt"))
+        #self.type4py_model = torch.load(join(self.pre_trained_model_path, f"type4py_complete_model.pt"))
+        self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"))
         self.type4py_model_params = load_model_params()
         logger.info(f"Loaded the pre-trained Type4Py model")
 
@@ -122,13 +125,18 @@ def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> Modul
     return ModuleInfo(v.imports, v.module_variables, v.module_variables_use, v.module_vars_ln, v.cls_list,
                       v.fns, '', '', v.module_no_types, v.module_type_annot_cove)
 
-def type_embed_single_dp(model, *input_tensor):
+def type_embed_single_dp(model: onnxruntime.InferenceSession, id_dp, code_tks_dp, vth_dp):
     """
     Gives a type embedding for a single test datapoint.
     """
-    model.eval()
-    with torch.no_grad():
-        return model(*(i.to(DEVICE) for i in input_tensor)).data.cpu().numpy().reshape(-1,1)
+    model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
+                     model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False),
+                     model.get_inputs()[2].name: vth_dp.astype(np.float32, copy=False)}
+    return model.run(None, model_inputs)[0].reshape(-1,1)
+
+    # model.eval()
+    # with torch.no_grad():
+    #     return model(*(i.to(DEVICE) for i in input_tensor)).data.cpu().numpy().reshape(-1,1)
 
 def infer_single_dp(type_cluster_idx: AnnoyIndex, k:int, types_embed_labels:np.array,
                     type_embed_vec: np.array):
@@ -146,16 +154,15 @@ def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array
                           columns=['var_name', 'var_occur', 'var_aval_enc'])
     id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
 
-    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
-                            axis=0)).float()
+    id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
 
     code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
                                 row.var_occur, None, None), axis=1)
-    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
-    vth_dp = torch.from_numpy(np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
-                                        axis=1), axis=0)).float()
+    code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+    vth_dp = np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
+                                        axis=1), axis=0)
     
-    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
 def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
     """
@@ -166,16 +173,15 @@ def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
                                                           row.func_name, None), axis=1)
 
-    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
-                            axis=0)).float()
+    id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
 
     code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
                                                            row.arg_occur, None, None), axis=1)
-    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
-    vth_dp = torch.from_numpy(np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
-                                        axis=1), axis=0)).float()
+    code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+    vth_dp = np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
+                                        axis=1), axis=0)
     
-    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
 def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
     """
@@ -186,16 +192,16 @@ def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
     id_dp = df_ret.apply(lambda row: IdentifierSequence(w2v_model, None, row.arg_names, row.func_name,
                           None), axis=1)
 
-    id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
-                            axis=0)).float()
+    id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+                            axis=0)
 
     code_tks_dp = df_ret.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1], None,
                                                          row.ret_expr_seq, None), axis=1)
-    code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
-    vth_dp = torch.from_numpy(np.stack(df_ret.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.ret_aval_enc),
-                                        axis=1), axis=0)).float()
+    code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+    vth_dp = np.stack(df_ret.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.ret_aval_enc),
+                                        axis=1), axis=0)
     
-    return type_embed_single_dp(type4py_model.model, id_dp, code_tks_dp, vth_dp)
+    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
 def apply_inferred_types(in_src_f: str, in_src_f_dict: dict, out_src_f_path: str):
     """
@@ -222,8 +228,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
     nlp_prep = NLPreprocessor()
     # Storing Type4Py's predictions
     src_f_ext['variables_p'] = {}
-    for m_v, m_v_o in tqdm(zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()), 
-                           total=len(src_f_ext['variables']), desc="[module][vars]"):
+    for m_v, m_v_o in zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()):
         
         var_type_embed = var2vec(nlp_prep.process_identifier(m_v),
                                  str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
@@ -231,7 +236,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
         # The type of module-level vars
         src_f_ext['variables_p'][m_v] = infer_preds_score(var_type_embed)
 
-    for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
+    for i, fn in enumerate(src_f_ext['funcs']):
         fn_n = nlp_prep.process_identifier(fn['name'])
         fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', 'kwargs'}]
         fn['params_p'] = {'args': [], 'kwargs': []}
@@ -260,7 +265,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
             src_f_ext['funcs'][i]['ret_type_p'] = infer_preds_score(ret_type_embed)
     
     # The type of class-level vars
-    for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
+    for c_i, c in enumerate(src_f_ext['classes']):
         c['variables_p'] = {}
         for c_v, c_v_o in zip(c['variables'], c['cls_var_occur'].values()):
             cls_var_type_embed = var2vec(nlp_prep.process_identifier(c_v),
@@ -334,7 +339,7 @@ def type_check_inferred_types(src_f_ext: dict, src_f_read: str, src_f_o_path):
     mypy_tc = MypyManager('mypy', 20)
     preds_type_checked: Tuple[bool, PredictionType] = []
 
-    for m_v, m_v_t in tqdm(src_f_ext['variables'].items()):
+    for m_v, m_v_t in src_f_ext['variables'].items():
         # The predictions for module-level vars   
         for p, s in src_f_ext['variables_p'][m_v]:
             logger.info(f"Annotating module-level variable {m_v} with {p}")
@@ -344,7 +349,7 @@ def type_check_inferred_types(src_f_ext: dict, src_f_read: str, src_f_o_path):
             if not is_tc:
                 src_f_ext['variables'][m_v] = m_v_t
             
-    for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
+    for i, fn in enumerate(src_f_ext['funcs']):
         for p_n, p_t in fn['params'].items():
             # The predictions for arguments for module-level functions
             for p, s in fn['params_p'][p_n]:
@@ -377,7 +382,7 @@ def type_check_inferred_types(src_f_ext: dict, src_f_read: str, src_f_o_path):
                     src_f_ext['funcs'][i]['ret_type'] = org_t
 
     # The type of class-level vars
-    for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
+    for c_i, c in enumerate(src_f_ext['classes']):
         for c_v, c_v_t in c['variables'].items():
             for p, s in c['variables_p'][c_v]:
                 logger.info(f"Annotating class variable {c_v} with {p}")
@@ -704,7 +709,7 @@ def infer_json_pred(pre_trained_m: PretrainedType4Py, source_file_path: str):
     src_f_ext = analyze_src_f(src_f_read).to_dict()
     logger.info("Extracted type hints and JSON-representation of input source file")
 
-    logger.info("Predicting type annotations for the given file:")
+    logger.info("Predicting type annotations for the given file")
     src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
 
     save_json(join(dirname(source_file_path),
@@ -738,9 +743,9 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
         src_f_read = source_code
     src_f_ext = analyze_src_f(src_f_read).to_dict()
     logger.info("Extracted type hints and JSON-representation of input source file")
-
-    logger.info("Predicting type annotations for the given file:")
+    
     src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
+    logger.info("Predicted type annotations for the given file")
 
     # type_check_inferred_types(src_f_ext, src_f_read, join(dirname(source_file_path),
     #                           splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX))
