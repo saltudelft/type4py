@@ -1,0 +1,10 @@
+button, input, form {
+    border: none;
+}
+
+#submit-button {
+    background-color: #3775a9;
+    color: white;
+    font-size: 20px;
+    padding: 10px;
+}
