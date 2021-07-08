@@ -3,8 +3,10 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
+import toml
 
 app = Flask(__name__)
+app.config.from_file("config.toml", load=toml.load)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 bp = Blueprint('type4py_api', __name__, template_folder='templates', url_prefix="/api/")
@@ -50,8 +52,10 @@ def upload():
         print("Predictions without type-checking")
         return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None)).get()
 
-limiter = Limiter(app,
-                  default_limits=["10/hour", "100/day"], 
-                  key_func=get_remote_address,
-                  storage_uri='memcached://localhost:11211')
+if app.config['RATE_LIMIT']:
+    limiter = Limiter(app,
+                    default_limits=["5/hour", "100/day"], 
+                    key_func=get_remote_address,
+                    storage_uri='memcached://localhost:11211')
+
 app.register_blueprint(bp)
