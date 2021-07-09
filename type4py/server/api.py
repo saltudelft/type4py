@@ -10,7 +10,7 @@ t4py_pretrained_m = None
 @app.before_first_request
 def load_type4py_model():
     global t4py_pretrained_m
-    t4py_pretrained_m = PretrainedType4Py("/home/amir/MT4Py_typed_full/type4py_pretrained/",
+    t4py_pretrained_m = PretrainedType4Py(app.config['MODEL_PATH'],
                                           app.config['PRE_READ_TYPE_CLUSTER'])
     t4py_pretrained_m.load_pretrained_model()
 

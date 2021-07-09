@@ -1,3 +1,4 @@
+MODEL_PATH = "/home/amir/MT4Py_typed_full/type4py_pretrained/"
 RATE_LIMIT = false
 PRE_READ_TYPE_CLUSTER = false
 MAX_LOC = 1000
