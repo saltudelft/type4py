@@ -45,6 +45,9 @@ def upload():
     """
     global t4py_pretrained_m
     src_file = request.data
+
+    if len(request.data.splitlines()) > app.config['MAX_LOC']:
+        return ServerResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
     
     if bool(int(request.args.get("tc"))):
         print("Predictions with type-checking")
