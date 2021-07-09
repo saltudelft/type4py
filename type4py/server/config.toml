@@ -1,1 +1,2 @@
 RATE_LIMIT = false
+PRE_READ_TYPE_CLUSTER = true

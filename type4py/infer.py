@@ -45,8 +45,9 @@ class PretrainedType4Py:
     #     self.type_clusters_labels = type_clusers_labels
     #     self.label_enc = label_enc
 
-    def __init__(self, pre_trained_model_path):
+    def __init__(self, pre_trained_model_path, pre_read_type_cluster=False):
         self.pre_trained_model_path = pre_trained_model_path
+        self.pre_read_type_cluster = pre_read_type_cluster
 
         self.type4py_model = None
         self.type4py_model_params = None
@@ -65,7 +66,8 @@ class PretrainedType4Py:
         logger.info(f"Loaded the pre-trained W2V model")
 
         self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
-        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
+        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"),
+                                    prefault=self.pre_read_type_cluster)
         self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
         self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
         logger.info(f"Loaded the Type Clusters")
@@ -168,8 +170,10 @@ def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
     """
     Converts a function argument to its type embedding
     """
+    # TODO: Fix VTH encoding
     df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
                           columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
+
     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
                                                           row.func_name, None), axis=1)
 
