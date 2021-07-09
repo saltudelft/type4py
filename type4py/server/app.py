@@ -16,3 +16,5 @@ if app.config['RATE_LIMIT']:
 
 from type4py.server.api import bp
 app.register_blueprint(bp)
+
+from type4py.server.error_handlers import *
