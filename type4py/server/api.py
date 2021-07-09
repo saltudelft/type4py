@@ -11,6 +11,7 @@ t4py_pretrained_m = None
 def load_type4py_model():
     global t4py_pretrained_m
     t4py_pretrained_m = PretrainedType4Py(app.config['MODEL_PATH'],
+                                          app.config['DEVICE'],
                                           app.config['PRE_READ_TYPE_CLUSTER'])
     t4py_pretrained_m.load_pretrained_model()
 
