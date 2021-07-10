@@ -1,7 +1,8 @@
-from flask import render_template, request, Blueprint
+from flask import render_template, request, Blueprint, session
 from type4py.server.app import app
 from type4py.server.response import ServerResponse
 from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
+from datetime import datetime
 
 bp = Blueprint('type4py_api', __name__, template_folder='templates', url_prefix="/api/")
 
@@ -14,6 +15,10 @@ def load_type4py_model():
                                           app.config['DEVICE'],
                                           app.config['PRE_READ_TYPE_CLUSTER'])
     t4py_pretrained_m.load_pretrained_model()
+
+@app.before_request
+def before_request_f():
+    session['req_start_t'] = datetime.now()
 
 @bp.route('/')
 def hello_world():
@@ -35,4 +40,5 @@ def upload():
         return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
     else:
         print("Predictions without type-checking")
+       
         return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None)).get()

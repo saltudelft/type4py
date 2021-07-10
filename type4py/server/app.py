@@ -6,6 +6,7 @@ import toml
 
 app = Flask(__name__)
 app.config.from_file("config.toml", load=toml.load)
+app.secret_key = app.config['APP_SECRET_KEY']
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 if app.config['RATE_LIMIT']:
