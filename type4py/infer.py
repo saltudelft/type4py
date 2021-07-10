@@ -64,9 +64,9 @@ class PretrainedType4Py:
         self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"))
         self.type4py_model_params = load_model_params()
         logger.info(f"Loaded the pre-trained Type4Py model")
-
+        
         if self.device == 'gpu':
-            self.type4py_model.set_providers(['GPUExecutionProvider'])
+            self.type4py_model.set_providers(['CUDAExecutionProvider'])
             logger.info("The model runs on GPU")
         elif self.device == 'cpu':
             self.type4py_model.set_providers(['CPUExecutionProvider'])
