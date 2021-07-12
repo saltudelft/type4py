@@ -7,7 +7,6 @@ from torch._C import dtype
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
 from type4py.learn import load_model_params
 from type4py.predict import compute_types_score
-from type4py.preprocess import trans_aval_type
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
 from type4py.utils import create_tmp_file
@@ -75,8 +74,8 @@ class PretrainedType4Py:
         self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
         logger.info(f"Loaded the pre-trained W2V model")
 
-        self.vths = pd.read_csv(join(self.pre_trained_model_path, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER)
-        self.vths = self.vths['Types'].to_list()
+        # self.vths = pd.read_csv(join(self.pre_trained_model_path, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER)
+        # self.vths = self.vths['Types'].to_list()
 
         self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
         self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"),
@@ -147,6 +146,8 @@ def type_embed_single_dp(model: onnxruntime.InferenceSession, id_dp, code_tks_dp
     model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
                      model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False),
                      model.get_inputs()[2].name: vth_dp.astype(np.float32, copy=False)}
+    # model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
+    #                  model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False)}
     return model.run(None, model_inputs)[0].reshape(-1,1)
 
     # model.eval()
@@ -179,12 +180,12 @@ def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array
     
     return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
-def param2vec(w2v_model, type4py_model, vth, *param_hints) -> np.array:
+def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
     """
     Converts a function argument to its type embedding
     """
     # TODO: Fix VTH encoding
-    df_param = pd.DataFrame([[p for p in param_hints] + [5]],
+    df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
                           columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
 
     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
@@ -197,7 +198,7 @@ def param2vec(w2v_model, type4py_model, vth, *param_hints) -> np.array:
     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
     vth_dp = np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
                                         axis=1), axis=0)
-    
+
     return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
 def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
@@ -258,7 +259,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
         fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', 'kwargs'}]
         fn['params_p'] = {'args': [], 'kwargs': []}
         for o_p, p, p_o in fn_p:
-            param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, pre_trained_m.vths,
+            param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
                                          fn_n, p, " ".join([p[1] for p in fn_p]),
                                          str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
             # The type of arguments for module-level functions
@@ -300,7 +301,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
             #fn_p = [nlp_prep.process_identifier(n) for n in fn['params'] if n != 'self']
             fn["params_p"] = {'self': [], 'args': [], 'kwargs': []}
             for o_p, p, p_o in fn_p:
-                param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, pre_trained_m.vths,
+                param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
                                             fn_n, p, " ".join([p[1] for p in fn_p]),
                                             str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
                 
