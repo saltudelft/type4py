@@ -10,12 +10,14 @@ from type4py.predict import compute_types_score
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
 from type4py.utils import create_tmp_file
+from libsa4py import PY_BUILTINS_MOD, PY_TYPING_MOD, PY_COLLECTION_MOD
 from libsa4py.cst_extractor import Extractor
 from libsa4py.representations import ModuleInfo
 from libsa4py.nl_preprocessing import NLPreprocessor
 from libsa4py.cst_transformers import TypeAnnotationRemover, TypeApplier
 from libsa4py.cst_visitor import Visitor
 from libsa4py.utils import load_json, read_file, save_json, write_file
+from libsa4py.helper import extract_names_from_type_annot
 from libcst.metadata import MetadataWrapper, TypeInferenceProvider
 from libcst import parse_module
 from annoy import AnnoyIndex
@@ -34,6 +36,7 @@ import onnxruntime
 logger.name = __name__
 #DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 OUTPUT_FILE_SUFFIX = "_type4py_typed.py"
+ALL_PY_TYPES = set(list(PY_BUILTINS_MOD) + list(PY_COLLECTION_MOD) + list(PY_TYPING_MOD))
 
 class PretrainedType4Py:
     # def __init__(self, type4py_model, type4py_model_params, w2v_model, type_clusters_idx,
@@ -235,13 +238,33 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
     Infers type annotations for the whole source code file
     """
 
-    def infer_preds_score(type_embed: np.array) -> list:
+    def filter_preds(preds: List[Tuple[str, float]]) -> List[Tuple[str, float]]:
+        """
+        Filters out predictions that are not part of Python builtin types nor part of 
+        the imported names in the file.
+        """
+
+        accepted_preds: List[Tuple[str, float]] = []
+        for p, s in preds:
+            p_names = set(extract_names_from_type_annot(p))
+            p_n_py_types_diff = p_names - ALL_PY_TYPES
+            if len(p_n_py_types_diff) == 0:
+                accepted_preds.append((p, s))
+            elif len(p_n_py_types_diff) < len(p_names):
+                if len(p_n_py_types_diff - set(src_f_ext['imports'])) < len(p_n_py_types_diff):
+                    accepted_preds.append((p, s))
+            elif len(p_names - set(src_f_ext['imports'])) < len(p_names):
+                accepted_preds.append((p, s))
+
+        return accepted_preds
+
+    def infer_preds_score(type_embed: np.array) -> List[Tuple[str, float]]:
         """
         Gives a list of predictions with its corresponding probability score
         """
         preds = infer_single_dp(pre_trained_m.type_clusters_idx, pre_trained_m.type4py_model_params['k'],
                                    pre_trained_m.type_clusters_labels, type_embed)
-        return list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds]))
+        return filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
 
     nlp_prep = NLPreprocessor()
     # Storing Type4Py's predictions
