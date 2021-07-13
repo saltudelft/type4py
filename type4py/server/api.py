@@ -31,6 +31,7 @@ def upload():
     TODO: modify to your own needs
     """
     src_file = request.data
+    is_fp_enabled = bool(int(request.args.get("fp"))) if request.args.get("fp") is not None else True
 
     if len(request.data.splitlines()) > app.config['MAX_LOC']:
         return ServerResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
@@ -39,4 +40,4 @@ def upload():
         return ServerResponse(None, "Type-checking is not available yet!").get()
         #return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
     else:
-        return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None)).get()
+        return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None, is_fp_enabled)).get()

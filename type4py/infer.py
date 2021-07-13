@@ -233,7 +233,7 @@ def apply_inferred_types(in_src_f: str, in_src_f_dict: dict, out_src_f_path: str
     write_file(out_src_f_path, f_parsed.code)
 
 
-def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict:
+def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_pred_types:bool=True) -> dict:
     """
     Infers type annotations for the whole source code file
     """
@@ -264,7 +264,11 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py) -> dict
         """
         preds = infer_single_dp(pre_trained_m.type_clusters_idx, pre_trained_m.type4py_model_params['k'],
                                    pre_trained_m.type_clusters_labels, type_embed)
-        return filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
+        if filter_pred_types:
+            return filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
+        else:
+            return list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds]))
+
 
     nlp_prep = NLPreprocessor()
     # Storing Type4Py's predictions
@@ -776,7 +780,8 @@ def type_check_json_pred(source_file_path: str, tc_resuls: list):
                               splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX))))
 
 
-def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, source_file_path: str=None):
+def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, source_file_path: str=None,
+                       filter_pred_types:bool=True):
 
     if source_file_path is not None:
         src_f_read = read_file(source_file_path)
@@ -785,7 +790,7 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
     src_f_ext = analyze_src_f(src_f_read).to_dict()
     logger.info("Extracted type hints and JSON-representation of input source file")
     
-    src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
+    src_f_ext = infer_single_file(src_f_ext, pre_trained_m, filter_pred_types)
     logger.info("Predicted type annotations for the given file")
 
     # type_check_inferred_types(src_f_ext, src_f_read, join(dirname(source_file_path),
