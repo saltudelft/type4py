@@ -1,6 +1,6 @@
 from flask import render_template, request, Blueprint, session
 from type4py.server.app import app
-from type4py.server.response import ServerResponse
+from type4py.server.response import PredictResponse, AcceptTypeResponse
 from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
 from datetime import datetime
 
@@ -34,10 +34,20 @@ def upload():
     is_fp_enabled = bool(int(request.args.get("fp"))) if request.args.get("fp") is not None else True
 
     if len(request.data.splitlines()) > app.config['MAX_LOC']:
-        return ServerResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
+        return PredictResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
     
     if bool(int(request.args.get("tc"))):
-        return ServerResponse(None, "Type-checking is not available yet!").get()
+        return PredictResponse(None, "Type-checking is not available yet!").get()
         #return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
     else:
-        return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None, is_fp_enabled)).get()
+        return PredictResponse(type_annotate_file(t4py_pretrained_m, src_file, None, is_fp_enabled)).get()
+
+@bp.route('/telemetry/accept_type', methods = ['GET'])
+def submit_accepted_types():
+    """
+    Stores accepted types from the VSCode based on users' consent.
+    """
+
+    app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} with rank {request.args.get('r')}")
+    return AcceptTypeResponse(request.args.get('at'), request.args.get('r'), request.args.get('ts'), int(request.args.get('fp')),
+                               response='Thanks for submitting accepted types!', error=None).get()
