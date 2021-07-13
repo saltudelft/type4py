@@ -36,9 +36,7 @@ def upload():
         return ServerResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
     
     if bool(int(request.args.get("tc"))):
-        print("Predictions with type-checking")
-        return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
+        return ServerResponse(None, "Type-checking is not available yet!").get()
+        #return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
     else:
-        print("Predictions without type-checking")
-       
         return ServerResponse(type_annotate_file(t4py_pretrained_m, src_file, None)).get()
