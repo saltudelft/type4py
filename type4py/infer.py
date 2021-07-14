@@ -127,7 +127,7 @@ class PretrainedType4Py:
 
 def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> ModuleInfo:
     """
-    Removes pre-existing type annotations from a source file
+    Removes pre-existing type annotations from a source file if desired
     """
 
     v = Visitor()
@@ -141,6 +141,7 @@ def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> Modul
 
     return ModuleInfo(v.imports, v.module_variables, v.module_variables_use, v.module_vars_ln, v.cls_list,
                       v.fns, '', '', v.module_no_types, v.module_type_annot_cove)
+
 
 def type_embed_single_dp(model: onnxruntime.InferenceSession, id_dp, code_tks_dp, vth_dp):
     """
@@ -787,7 +788,8 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
         src_f_read = read_file(source_file_path)
     else:
         src_f_read = source_code
-    src_f_ext = analyze_src_f(src_f_read).to_dict()
+    #src_f_ext = analyze_src_f(src_f_read).to_dict()
+    src_f_ext = Extractor.extract(src_f_read, include_seq2seq=False).to_dict()
     logger.info("Extracted type hints and JSON-representation of input source file")
     
     src_f_ext = infer_single_file(src_f_ext, pre_trained_m, filter_pred_types)
