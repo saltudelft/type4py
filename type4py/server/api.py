@@ -1,6 +1,6 @@
 from flask import render_template, request, Blueprint, session
 from type4py.server.app import app
-from type4py.server.response import PredictResponse, AcceptTypeResponse
+from type4py.server.response import PredictResponse, AcceptTypeResponse, is_session_id_valid
 from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
 from datetime import datetime
 from secrets import token_urlsafe
@@ -52,8 +52,10 @@ def submit_accepted_types():
     """
     Stores accepted types from the VSCode based on users' consent.
     """
-
-    app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} | sess: {request.args.get('sid')}")
-    return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 
-                              request.args.get('idn'), request.args.get('tsl'), int(request.args.get('fp')),
-                              response='Thanks for submitting accepted types!', error=None).get()
+    if is_session_id_valid(request.args.get('sid')):
+        app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} | sess: {request.args.get('sid')}")
+        return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 
+                                request.args.get('idn'), request.args.get('tsl'), int(request.args.get('fp')),
+                                response='Thanks for submitting accepted types!').get()
+    else:
+        return AcceptTypeResponse(None, response=None, error="Invalid sessionID!").get()

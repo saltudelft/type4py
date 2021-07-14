@@ -29,12 +29,17 @@ class TelemetryResponse(ABC):
 
 
 class AcceptTypeResponse(TelemetryResponse):
-    def __init__(self, *submit_data, response: str, error: str) -> None:
+    def __init__(self, *submit_data, response: str, error: str=None) -> None:
         self.submit_data = submit_data
         self.response = response
         self.error = error
 
     def get(self):
-        dbm.sqla.session.add(dbm.AcceptedTypes(*self.submit_data))
-        dbm.sqla.session.commit()
+        if self.error is None:
+            dbm.sqla.session.add(dbm.AcceptedTypes(*self.submit_data))
+            dbm.sqla.session.commit()
         return {'response': self.response, 'error': self.error}
+
+
+def is_session_id_valid(sess_token: str):
+    return True if dbm.PredictReqs.query.filter_by(sess_id=sess_token).first() is not None else False
