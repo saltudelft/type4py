@@ -12,9 +12,11 @@ class PredictResponse:
         self.error = error
     
     def get(self):
-        dbm.sqla.session.add(dbm.PredictReqs(sha1(get_remote_address().encode()).hexdigest(), session.get("req_start_t"),
-                                             datetime.now(), self.error))
+        dbm.sqla.session.add(dbm.PredictReqs(sha1(get_remote_address().encode()).hexdigest(), session.get("session_id"), session.get("req_start_t"),
+                                             datetime.now(), self.error, self.response))
         dbm.sqla.session.commit()
+        if self.response is not None:
+            self.response['session_id'] = session.get("session_id")
         return {'response': self.response, 'error': self.error}
 
 

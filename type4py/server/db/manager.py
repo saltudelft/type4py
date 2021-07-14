@@ -16,15 +16,19 @@ class PredictReqs(sqla.Model):
 
     id = sqla.Column(sqla.Integer, primary_key=True)
     hashed_IP = sqla.Column(sqla.String, nullable=False)
+    sess_id = sqla.Column(sqla.String, nullable=False)
     start_t = sqla.Column(sqla.DateTime, nullable=False)
     finished_t = sqla.Column(sqla.DateTime, nullable=False)
     error = sqla.Column(sqla.String)
+    extracted_features = sqla.Column(sqla.JSON)
 
-    def __init__(self, hashed_IP, start_t, finished_t, error):
+    def __init__(self, hashed_IP, sess_id, start_t, finished_t, error, extracted_features):
         self.hashed_IP = hashed_IP
+        self.sess_id = sess_id
         self.start_t= start_t
         self.finished_t = finished_t
         self.error = error
+        self.extracted_features = extracted_features
 
 class AcceptedTypes(sqla.Model):
     """
@@ -39,14 +43,21 @@ class AcceptedTypes(sqla.Model):
     __tablename__ = 'accepted_types'
 
     id = sqla.Column(sqla.Integer, primary_key=True)
+    sess_id = sqla.Column(sqla.String, nullable=False)
     accepted_type = sqla.Column(sqla.String, nullable=False)
     rank = sqla.Column(sqla.Integer, nullable=False)
-    type_slot = sqla.Column(sqla.Enum(TypeSlots), nullable=False)
+    type_slot = sqla.Column(sqla.Enum(TypeSlots, create_type=False), nullable=False)
+    id_name = sqla.Column(sqla.String, nullable=False)
+    id_ln = sqla.Column(sqla.Integer, nullable=False)
     filtered_preds = sqla.Column(sqla.Boolean, nullable=False)
     timestamp = sqla.Column(sqla.DateTime(timezone=True), server_default=sqla.func.now())
 
-    def __init__(self, accepted_type, rank, type_slot, filtered_preds):
+    def __init__(self, sess_id, accepted_type, rank, type_slot,
+                 id_name, id_ln, filtered_preds):
+        self.sess_id = sess_id
         self.accepted_type = accepted_type
         self.rank = rank
         self.type_slot = type_slot
+        self.id_name = id_name
+        self.id_ln = id_ln
         self.filtered_preds = filtered_preds

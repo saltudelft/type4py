@@ -3,6 +3,7 @@ from type4py.server.app import app
 from type4py.server.response import PredictResponse, AcceptTypeResponse
 from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
 from datetime import datetime
+from secrets import token_urlsafe
 
 bp = Blueprint('type4py_api', __name__, template_folder='templates', url_prefix="/api/")
 
@@ -20,12 +21,16 @@ def load_type4py_model():
 def before_request_f():
     session['req_start_t'] = datetime.now()
 
+    if request.endpoint == "type4py_api.predict":
+        session['session_id'] = token_urlsafe(32)
+        app.logger.info(f"Endpoint {request.endpoint}")
+
 @bp.route('/')
 def hello_world():
     return render_template('index.html')
 
 @bp.route('/predict', methods = ['POST', 'GET'])
-def upload():
+def predict():
     """
     POST method for uploading a file. Reads in a sent file and returns it.
     TODO: modify to your own needs
@@ -48,6 +53,7 @@ def submit_accepted_types():
     Stores accepted types from the VSCode based on users' consent.
     """
 
-    app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} with rank {request.args.get('r')}")
-    return AcceptTypeResponse(request.args.get('at'), request.args.get('r'), request.args.get('ts'), int(request.args.get('fp')),
-                               response='Thanks for submitting accepted types!', error=None).get()
+    app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} | sess: {request.args.get('sid')}")
+    return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 
+                              request.args.get('idn'), request.args.get('tsl'), int(request.args.get('fp')),
+                              response='Thanks for submitting accepted types!', error=None).get()
