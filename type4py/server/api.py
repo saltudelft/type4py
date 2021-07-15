@@ -38,8 +38,8 @@ def predict():
     src_file = request.data
     is_fp_enabled = bool(int(request.args.get("fp"))) if request.args.get("fp") is not None else True
 
-    if len(request.data.splitlines()) > app.config['MAX_LOC']:
-        return PredictResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
+    # if len(request.data.splitlines()) > app.config['MAX_LOC']:
+    #     return PredictResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
     
     if bool(int(request.args.get("tc"))):
         return PredictResponse(None, "Type-checking is not available yet!").get()
