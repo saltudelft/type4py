@@ -1,0 +1,1291 @@
+{
+  "classes": [
+    {
+      "cls_var_ln": {},
+      "cls_var_occur": {},
+      "funcs": [
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              12,
+              4
+            ],
+            [
+              15,
+              71
+            ]
+          ],
+          "fn_var_ln": {
+            "class_name": [
+              [
+                14,
+                8
+              ],
+              [
+                14,
+                23
+              ]
+            ],
+            "path_name": [
+              [
+                15,
+                8
+              ],
+              [
+                15,
+                22
+              ]
+            ],
+            "stubs": [
+              [
+                13,
+                8
+              ],
+              [
+                13,
+                18
+              ]
+            ]
+          },
+          "fn_var_occur": {
+            "class_name": [
+              [
+                "self",
+                "class_name"
+              ]
+            ],
+            "path_name": [
+              [
+                "self",
+                "path_name",
+                "builtins",
+                "str",
+                "str",
+                "path_name",
+                "replace"
+              ]
+            ],
+            "stubs": [
+              [
+                "self",
+                "stubs",
+                "typing",
+                "List",
+                "typing",
+                "Dict",
+                "builtins",
+                "str",
+                "typing",
+                "Any"
+              ]
+            ]
+          },
+          "name": "__init__",
+          "params": {
+            "path_name": "builtins.str",
+            "self": ""
+          },
+          "params_descr": {
+            "path_name": "",
+            "self": ""
+          },
+          "params_occur": {
+            "path_name": [
+              [
+                "self",
+                "path_name",
+                "builtins",
+                "str",
+                "str",
+                "path_name",
+                "replace"
+              ]
+            ],
+            "self": [
+              [
+                "self",
+                "stubs",
+                "typing",
+                "List",
+                "typing",
+                "Dict",
+                "builtins",
+                "str",
+                "typing",
+                "Any"
+              ],
+              [
+                "self",
+                "class_name"
+              ],
+              [
+                "self",
+                "path_name",
+                "builtins",
+                "str",
+                "str",
+                "path_name",
+                "replace"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "kwargs": [],
+            "path_name": [
+              [
+                "str",
+                0.9027930202280281
+              ]
+            ],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.__init__",
+          "ret_exprs": [],
+          "ret_type": "None",
+          "variables": {
+            "class_name": "",
+            "path_name": "builtins.str",
+            "stubs": "typing.List[typing.Dict[builtins.str, typing.Any]]"
+          },
+          "variables_p": {
+            "class_name": [
+              [
+                "str",
+                0.9999999999999999
+              ]
+            ],
+            "path_name": [
+              [
+                "str",
+                1.0
+              ]
+            ],
+            "stubs": [
+              [
+                "List[Dict[str, Any]]",
+                1.0000000000000002
+              ]
+            ]
+          }
+        },
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              17,
+              4
+            ],
+            [
+              51,
+              20
+            ]
+          ],
+          "fn_var_ln": {
+            "annotation": [
+              [
+                28,
+                12
+              ],
+              [
+                28,
+                22
+              ]
+            ],
+            "class_name": [
+              [
+                20,
+                8
+              ],
+              [
+                20,
+                18
+              ]
+            ],
+            "function_stub": [
+              [
+                40,
+                8
+              ],
+              [
+                40,
+                21
+              ]
+            ],
+            "name": [
+              [
+                21,
+                8
+              ],
+              [
+                21,
+                12
+              ]
+            ],
+            "parameters": [
+              [
+                26,
+                8
+              ],
+              [
+                26,
+                18
+              ]
+            ]
+          },
+          "fn_var_occur": {
+            "annotation": [
+              [
+                "annotation",
+                "None",
+                "parameter",
+                "annotation",
+                "None",
+                "parameter",
+                "annotation",
+                "annotation"
+              ],
+              [
+                "parameters",
+                "append",
+                "parameter",
+                "name",
+                "value",
+                "self",
+                "code_for_node",
+                "annotation",
+                "self",
+                "code_for_node",
+                "parameter",
+                "default"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "class_name": [
+              [
+                "class_name",
+                "join",
+                "self",
+                "class_name"
+              ],
+              [
+                "name",
+                "node",
+                "name",
+                "value",
+                "self",
+                "class_name",
+                "class_name",
+                "node",
+                "name",
+                "value"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "function_stub": [
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ],
+              [
+                "self",
+                "stubs",
+                "append",
+                "function_stub"
+              ]
+            ],
+            "name": [
+              [
+                "name",
+                "node",
+                "name",
+                "value",
+                "self",
+                "class_name",
+                "class_name",
+                "node",
+                "name",
+                "value"
+              ],
+              [
+                "parameters",
+                "append",
+                "parameter",
+                "name",
+                "value",
+                "self",
+                "code_for_node",
+                "annotation",
+                "self",
+                "code_for_node",
+                "parameter",
+                "default"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "parameters": [
+              [
+                "parameters",
+                "append",
+                "parameter",
+                "name",
+                "value",
+                "self",
+                "code_for_node",
+                "annotation",
+                "self",
+                "code_for_node",
+                "parameter",
+                "default"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ]
+          },
+          "name": "visit_FunctionDef",
+          "params": {
+            "node": "libcst.FunctionDef",
+            "self": ""
+          },
+          "params_descr": {
+            "node": "",
+            "self": ""
+          },
+          "params_occur": {
+            "node": [
+              [
+                "node",
+                "returns",
+                "None"
+              ],
+              [
+                "name",
+                "node",
+                "name",
+                "value",
+                "self",
+                "class_name",
+                "class_name",
+                "node",
+                "name",
+                "value"
+              ],
+              [
+                "node",
+                "params",
+                "params"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "self": [
+              [
+                "class_name",
+                "join",
+                "self",
+                "class_name"
+              ],
+              [
+                "name",
+                "node",
+                "name",
+                "value",
+                "self",
+                "class_name",
+                "class_name",
+                "node",
+                "name",
+                "value"
+              ],
+              [
+                "parameters",
+                "append",
+                "parameter",
+                "name",
+                "value",
+                "self",
+                "code_for_node",
+                "annotation",
+                "self",
+                "code_for_node",
+                "parameter",
+                "default"
+              ],
+              [
+                "function_stub",
+                "self",
+                "path_name",
+                "name",
+                "self",
+                "code_for_node",
+                "node",
+                "returns",
+                "annotation",
+                "parameters",
+                "self",
+                "code_for_node",
+                "decorator",
+                "decorator",
+                "node",
+                "decorators",
+                "node",
+                "asynchronous",
+                "None",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ],
+              [
+                "self",
+                "stubs",
+                "append",
+                "function_stub"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "kwargs": [],
+            "node": [],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.visit_FunctionDef",
+          "ret_exprs": [
+            "return False",
+            "return False"
+          ],
+          "ret_type": "builtins.bool",
+          "ret_type_p": [
+            [
+              "bool",
+              0.5811287587743105
+            ]
+          ],
+          "variables": {
+            "annotation": "",
+            "class_name": "",
+            "function_stub": "",
+            "name": "",
+            "parameters": ""
+          },
+          "variables_p": {
+            "annotation": [
+              [
+                "list",
+                0.15953922216408303
+              ],
+              [
+                "Tuple[Any, List[Any]]",
+                0.10736416593517857
+              ],
+              [
+                "List[str]",
+                0.08982102732019612
+              ],
+              [
+                "Type[Dict[Any, Any]]",
+                0.0834151234518014
+              ],
+              [
+                "int",
+                0.0810307300336444
+              ]
+            ],
+            "class_name": [
+              [
+                "str",
+                0.5119147015840411
+              ],
+              [
+                "Pattern[str]",
+                0.30070455692173415
+              ],
+              [
+                "Iterable[Dict[str, Any]]",
+                0.09944825724221786
+              ]
+            ],
+            "function_stub": [
+              [
+                "Set[str]",
+                0.361007552687333
+              ],
+              [
+                "Type[DefaultDict[Any, int]]",
+                0.1992088739124956
+              ],
+              [
+                "Type[Dict[Any, str]]",
+                0.11092332333994205
+              ],
+              [
+                "list",
+                0.11074126387068646
+              ],
+              [
+                "Pattern[str]",
+                0.07410907498795899
+              ]
+            ],
+            "name": [
+              [
+                "str",
+                0.4136271024729935
+              ],
+              [
+                "Tuple[str]",
+                0.17133267708186087
+              ],
+              [
+                "dict",
+                0.11677768172188811
+              ],
+              [
+                "list",
+                0.09215010768216936
+              ]
+            ],
+            "parameters": [
+              [
+                "Dict[str, List[str]]",
+                0.6817134938258719
+              ],
+              [
+                "Tuple[Literal, Literal, Literal, Literal, Literal, Literal]",
+                0.11594039236708371
+              ],
+              [
+                "List[str]",
+                0.10576554205276666
+              ],
+              [
+                "list",
+                0.09658057175427787
+              ]
+            ]
+          }
+        },
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              53,
+              4
+            ],
+            [
+              54,
+              47
+            ]
+          ],
+          "fn_var_ln": {},
+          "fn_var_occur": {},
+          "name": "visit_ClassDef",
+          "params": {
+            "node": "libcst.ClassDef",
+            "self": ""
+          },
+          "params_descr": {
+            "node": "",
+            "self": ""
+          },
+          "params_occur": {
+            "node": [
+              [
+                "self",
+                "class_name",
+                "append",
+                "node",
+                "name",
+                "value"
+              ]
+            ],
+            "self": [
+              [
+                "self",
+                "class_name",
+                "append",
+                "node",
+                "name",
+                "value"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "kwargs": [],
+            "node": [
+              [
+                "dict",
+                0.22361256521003192
+              ]
+            ],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.visit_ClassDef",
+          "ret_exprs": [],
+          "ret_type": "None",
+          "variables": {},
+          "variables_p": {}
+        },
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              56,
+              4
+            ],
+            [
+              57,
+              56
+            ]
+          ],
+          "fn_var_ln": {},
+          "fn_var_occur": {},
+          "name": "leave_ClassDef",
+          "params": {
+            "original_node": "libcst.ClassDef",
+            "self": ""
+          },
+          "params_descr": {
+            "original_node": "",
+            "self": ""
+          },
+          "params_occur": {
+            "original_node": [
+              [
+                "self",
+                "class_name",
+                "remove",
+                "original_node",
+                "name",
+                "value"
+              ]
+            ],
+            "self": [
+              [
+                "self",
+                "class_name",
+                "remove",
+                "original_node",
+                "name",
+                "value"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "kwargs": [],
+            "original_node": [
+              [
+                "dict",
+                0.08757069724744511
+              ]
+            ],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.leave_ClassDef",
+          "ret_exprs": [],
+          "ret_type": "None",
+          "variables": {},
+          "variables_p": {}
+        },
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              59,
+              4
+            ],
+            [
+              72,
+              31
+            ]
+          ],
+          "fn_var_ln": {
+            "attribute_name": [
+              [
+                64,
+                8
+              ],
+              [
+                64,
+                22
+              ]
+            ],
+            "class_name": [
+              [
+                63,
+                8
+              ],
+              [
+                63,
+                18
+              ]
+            ],
+            "stub": [
+              [
+                67,
+                8
+              ],
+              [
+                67,
+                12
+              ]
+            ],
+            "target_name": [
+              [
+                60,
+                8
+              ],
+              [
+                60,
+                19
+              ]
+            ]
+          },
+          "fn_var_occur": {
+            "attribute_name": [
+              [
+                "attribute_name",
+                "class_name",
+                "target_name",
+                "self",
+                "class_name",
+                "target_name"
+              ],
+              [
+                "stub",
+                "self",
+                "path_name",
+                "attribute_name",
+                "self",
+                "code_for_node",
+                "node",
+                "annotation",
+                "annotation",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "class_name": [
+              [
+                "class_name",
+                "join",
+                "self",
+                "class_name"
+              ],
+              [
+                "attribute_name",
+                "class_name",
+                "target_name",
+                "self",
+                "class_name",
+                "target_name"
+              ],
+              [
+                "stub",
+                "self",
+                "path_name",
+                "attribute_name",
+                "self",
+                "code_for_node",
+                "node",
+                "annotation",
+                "annotation",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "stub": [
+              [
+                "stub",
+                "self",
+                "path_name",
+                "attribute_name",
+                "self",
+                "code_for_node",
+                "node",
+                "annotation",
+                "annotation",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ],
+              [
+                "self",
+                "stubs",
+                "append",
+                "stub"
+              ]
+            ],
+            "target_name": [
+              [
+                "target_name",
+                "self",
+                "code_for_node",
+                "node",
+                "target"
+              ],
+              [
+                "target_name",
+                "None"
+              ],
+              [
+                "attribute_name",
+                "class_name",
+                "target_name",
+                "self",
+                "class_name",
+                "target_name"
+              ]
+            ]
+          },
+          "name": "visit_AnnAssign",
+          "params": {
+            "node": "libcst.AnnAssign",
+            "self": ""
+          },
+          "params_descr": {
+            "node": "",
+            "self": ""
+          },
+          "params_occur": {
+            "node": [
+              [
+                "target_name",
+                "self",
+                "code_for_node",
+                "node",
+                "target"
+              ],
+              [
+                "stub",
+                "self",
+                "path_name",
+                "attribute_name",
+                "self",
+                "code_for_node",
+                "node",
+                "annotation",
+                "annotation",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ]
+            ],
+            "self": [
+              [
+                "target_name",
+                "self",
+                "code_for_node",
+                "node",
+                "target"
+              ],
+              [
+                "class_name",
+                "join",
+                "self",
+                "class_name"
+              ],
+              [
+                "attribute_name",
+                "class_name",
+                "target_name",
+                "self",
+                "class_name",
+                "target_name"
+              ],
+              [
+                "stub",
+                "self",
+                "path_name",
+                "attribute_name",
+                "self",
+                "code_for_node",
+                "node",
+                "annotation",
+                "annotation",
+                "class_name",
+                "self",
+                "class_name",
+                "None"
+              ],
+              [
+                "self",
+                "stubs",
+                "append",
+                "stub"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "kwargs": [],
+            "node": [],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.visit_AnnAssign",
+          "ret_exprs": [
+            "return"
+          ],
+          "ret_type": "None",
+          "ret_type_p": [],
+          "variables": {
+            "attribute_name": "",
+            "class_name": "",
+            "stub": "",
+            "target_name": ""
+          },
+          "variables_p": {
+            "attribute_name": [
+              [
+                "str",
+                0.39952591074425736
+              ],
+              [
+                "List[str]",
+                0.21026253628637515
+              ],
+              [
+                "Optional[str]",
+                0.11155328653297729
+              ],
+              [
+                "set",
+                0.09813115281244925
+              ],
+              [
+                "frozenset[Union[Any, Any]]",
+                0.08672628168252249
+              ]
+            ],
+            "class_name": [
+              [
+                "str",
+                0.3252990954786911
+              ],
+              [
+                "List[str]",
+                0.30287919679650255
+              ],
+              [
+                "dict",
+                0.2568888191721083
+              ]
+            ],
+            "stub": [
+              [
+                "Type[str]",
+                0.7800342418268461
+              ],
+              [
+                "Set[str]",
+                0.0982724041005148
+              ]
+            ],
+            "target_name": [
+              [
+                "str",
+                0.5954204863465197
+              ],
+              [
+                "List[str]",
+                0.2992575757364051
+              ]
+            ]
+          }
+        },
+        {
+          "docstring": {
+            "func": null,
+            "long_descr": null,
+            "ret": null
+          },
+          "fn_lc": [
+            [
+              76,
+              4
+            ],
+            [
+              77,
+              81
+            ]
+          ],
+          "fn_var_ln": {},
+          "fn_var_occur": {},
+          "name": "code_for_node",
+          "params": {
+            "cls": "",
+            "node": "typing.Optional[libcst.CSTNode]"
+          },
+          "params_descr": {
+            "cls": "",
+            "node": ""
+          },
+          "params_occur": {
+            "cls": [],
+            "node": [
+              [
+                "None",
+                "node",
+                "None",
+                "cst",
+                "parse_module",
+                "code_for_node",
+                "node"
+              ]
+            ]
+          },
+          "params_p": {
+            "args": [],
+            "cls": [
+              [
+                "List[Type]",
+                0.28147570456253734
+              ],
+              [
+                "type",
+                0.09693194328667647
+              ]
+            ],
+            "kwargs": [],
+            "node": [
+              [
+                "str",
+                0.20047147521372002
+              ],
+              [
+                "Callable[..., None]",
+                0.09327306131732921
+              ]
+            ],
+            "self": []
+          },
+          "q_name": "AnnotationCollector.code_for_node",
+          "ret_exprs": [
+            "return None if node is None else cst.parse_module(\"\").code_for_node(node)"
+          ],
+          "ret_type": "typing.Optional[builtins.str]",
+          "ret_type_p": [
+            [
+              "Sequence[str]",
+              0.18328327512451753
+            ],
+            [
+              "Optional[Dict]",
+              0.1254837258927802
+            ],
+            [
+              "Optional[float]",
+              0.09755670174452548
+            ],
+            [
+              "Optional[int]",
+              0.09164163756225877
+            ]
+          ],
+          "variables": {},
+          "variables_p": {}
+        }
+      ],
+      "name": "AnnotationCollector",
+      "q_name": "AnnotationCollector",
+      "variables": {},
+      "variables_p": {}
+    }
+  ],
+  "funcs": [],
+  "imports": [
+    "typing",
+    "Any",
+    "Dict",
+    "List",
+    "Optional",
+    "libcst",
+    "cst"
+  ],
+  "mod_var_ln": {},
+  "mod_var_occur": {},
+  "no_types_annot": {
+    "D": 13,
+    "I": 0,
+    "U": 11
+  },
+  "set": null,
+  "tc": [
+    false,
+    null
+  ],
+  "type_annot_cove": 0.54,
+  "typed_seq": "",
+  "untyped_seq": "",
+  "variables": {},
+  "variables_p": {}
+}
