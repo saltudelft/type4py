@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 from torch._C import dtype
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
 from type4py.learn import load_model_params
+from type4py.data_loaders import to_numpy
 from type4py.predict import compute_types_score
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
@@ -150,9 +151,14 @@ def type_embed_single_dp(model: onnxruntime.InferenceSession, id_dp, code_tks_dp
     model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
                      model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False),
                      model.get_inputs()[2].name: vth_dp.astype(np.float32, copy=False)}
+
+    
+    # model_inputs =  {model.get_inputs()[0].name: to_numpy(id_dp),
+    #                  model.get_inputs()[1].name: to_numpy(code_tks_dp),
+    #                  model.get_inputs()[2].name: to_numpy(vth_dp)}
     # model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
     #                  model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False)}
-    return model.run(None, model_inputs)[0].reshape(-1,1)
+    return model.run(None, model_inputs)[0]
 
     # model.eval()
     # with torch.no_grad():
@@ -166,11 +172,41 @@ def infer_single_dp(type_cluster_idx: AnnoyIndex, k:int, types_embed_labels:np.a
     idx, dist = type_cluster_idx.get_nns_by_vector(type_embed_vec, k, include_distances=True)
     return compute_types_score(dist, idx, types_embed_labels)
 
-def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array:
+# def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array:
+#     """
+#     Converts a variable to its type embedding
+#     """
+#     df_var = pd.DataFrame([[var_name, var_occur, AVAILABLE_TYPES_NUMBER-1]],
+#                           columns=['var_name', 'var_occur', 'var_aval_enc'])
+#     id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
+
+#     id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+
+#     code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+#                                 row.var_occur, None, None), axis=1)
+#     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+#     vth_dp = np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
+#                                         axis=1), axis=0)
+
+#     # id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
+
+#     # id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+#     #                         axis=0)).float()
+
+#     # code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+#     #                             row.var_occur, None, None), axis=1)
+#     # code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
+#     # vth_dp = torch.from_numpy(np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
+#     #                                     axis=1), axis=0)).float()
+    
+#     #return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
+#     return id_dp, code_tks_dp, vth_dp
+
+def var2vec(vars_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array, np.array]:
     """
     Converts a variable to its type embedding
     """
-    df_var = pd.DataFrame([[var_name, var_occur, AVAILABLE_TYPES_NUMBER-1]],
+    df_var = pd.DataFrame(vars_type_hints,
                           columns=['var_name', 'var_occur', 'var_aval_enc'])
     id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
 
@@ -181,16 +217,49 @@ def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array
     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
     vth_dp = np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
                                         axis=1), axis=0)
-    
-    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
 
-def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
+    return id_dp, code_tks_dp, vth_dp
+
+# def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
+#     """
+#     Converts a function argument to its type embedding
+#     """
+#     # TODO: Fix VTH encoding
+#     df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
+#                           columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
+
+#     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
+#                                                           row.func_name, None), axis=1)
+
+#     id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+
+#     code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+#                                                            row.arg_occur, None, None), axis=1)
+#     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
+#     vth_dp = np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
+#                                         axis=1), axis=0)
+
+#     # id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
+#     #                                                       row.func_name, None), axis=1)
+
+#     # id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
+#     #                         axis=0)).float()
+
+#     # code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
+#     #                                                        row.arg_occur, None, None), axis=1)
+#     # code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
+#     # vth_dp = torch.from_numpy(np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
+#     #                                     axis=1), axis=0)).float()
+
+#     #return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
+#     return id_dp, code_tks_dp, vth_dp
+
+def param2vec(params_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array, np.array]:
     """
     Converts a function argument to its type embedding
     """
-    # TODO: Fix VTH encoding
-    df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
-                          columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
+    df_param = pd.DataFrame(params_type_hints,
+                            columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
 
     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
                                                           row.func_name, None), axis=1)
@@ -203,13 +272,13 @@ def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
     vth_dp = np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
                                         axis=1), axis=0)
 
-    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
+    return id_dp, code_tks_dp, vth_dp
 
-def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
+def ret2vec(rets_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array, np.array]:
     """
     Converts a function return to its type embedding
     """
-    df_ret = pd.DataFrame([[r for r in ret_hints] + [AVAILABLE_TYPES_NUMBER-1]],
+    df_ret = pd.DataFrame(rets_type_hints,
                           columns=['func_name', 'arg_names', 'ret_expr_seq', 'ret_aval_enc'])
     id_dp = df_ret.apply(lambda row: IdentifierSequence(w2v_model, None, row.arg_names, row.func_name,
                           None), axis=1)
@@ -222,8 +291,8 @@ def ret2vec(w2v_model, type4py_model, *ret_hints) -> np.array:
     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
     vth_dp = np.stack(df_ret.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.ret_aval_enc),
                                         axis=1), axis=0)
-    
-    return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
+
+    return id_dp, code_tks_dp, vth_dp
 
 def apply_inferred_types(in_src_f: str, in_src_f_dict: dict, out_src_f_path: str):
     """
@@ -259,66 +328,174 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
 
         return accepted_preds
 
-    def infer_preds_score(type_embed: np.array) -> List[Tuple[str, float]]:
+    def infer_preds_score(type_embeds: np.array) -> List[List[Tuple[str, float]]]:
         """
         Gives a list of predictions with its corresponding probability score
         """
-        preds = infer_single_dp(pre_trained_m.type_clusters_idx, pre_trained_m.type4py_model_params['k'],
-                                   pre_trained_m.type_clusters_labels, type_embed)
-        if filter_pred_types:
-            return filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
-        else:
-            return list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds]))
+        type_embeds_preds: List[List[Tuple[str, float]]] = []
+
+        for te in type_embeds:
+            preds = infer_single_dp(pre_trained_m.type_clusters_idx, pre_trained_m.type4py_model_params['k'],
+                                   pre_trained_m.type_clusters_labels, te)
+            if filter_pred_types:
+                type_embeds_preds.append(filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds]))))
+            else:
+                type_embeds_preds.append(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
+        
+        return type_embeds_preds
 
 
-    nlp_prep = NLPreprocessor()
+    nlp_prep = NLPreprocessor(lemmatize=False)
+
+    #type_slots_ref = [] 
+    vars_type_slots = []
+    params_type_slots = []
+    rets_type_slots = []
+
+    id_dps: List[np.array] = []
+    code_tks_dps: List[np.array] = []
+    vth_dps: List[np.array] = []
+
+    params_type_hints = []
+    rets_type_hints = []
+    vars_type_hints = []
+
     # Storing Type4Py's predictions
     src_f_ext['variables_p'] = {}
     for m_v, m_v_o in zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()):
         
-        var_type_embed = var2vec(nlp_prep.process_identifier(m_v),
-                                 str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
-                                  pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+        #type_slots_ref.append((src_f_ext['variables_p'], m_v))
+
+        vars_type_slots.append((src_f_ext['variables_p'], m_v))
+        # var_type_embed = var2vec(nlp_prep.process_identifier(m_v),
+        #                          str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
+        #                           pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+        vars_type_hints.append([nlp_prep.process_identifier(m_v),
+                               str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]), 
+                               AVAILABLE_TYPES_NUMBER-1])
+        
+        # vars_type_hints.append([nlp_prep.process_identifier(m_v),
+        #                         nlp_prep.process_sentence(" ".join([o for i in m_v_o for o in i])), 
+        #                         AVAILABLE_TYPES_NUMBER-1])
+
+
+        # id_dp, code_tks_dp, vth_dp = var2vec(nlp_prep.process_identifier(m_v),
+        #                           str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]),
+        #                            pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+        # id_dps.append(id_dp)
+        # code_tks_dps.append(code_tks_dp)
+        # vth_dps.append(vth_dp)
+
         # The type of module-level vars
-        src_f_ext['variables_p'][m_v] = infer_preds_score(var_type_embed)
+        #src_f_ext['variables_p'][m_v] = infer_preds_score(var_type_embed)
 
     for i, fn in enumerate(src_f_ext['funcs']):
         fn_n = nlp_prep.process_identifier(fn['name'])
         fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', 'kwargs'}]
         fn['params_p'] = {'args': [], 'kwargs': []}
         for o_p, p, p_o in fn_p:
-            param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
-                                         fn_n, p, " ".join([p[1] for p in fn_p]),
-                                         str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
+            # param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+            #                              fn_n, p, " ".join([p[1] for p in fn_p]),
+            #                              str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
+            #type_slots_ref.append((src_f_ext['funcs'][i]['params_p'], o_p))
+
+            params_type_slots.append((src_f_ext['funcs'][i]['params_p'], o_p))
+
+            params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
+                                     str([nlp_prep.process_sentence(o) for i in p_o for o in i]),
+                                     AVAILABLE_TYPES_NUMBER-1])
+
+            # params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
+            #                           nlp_prep.process_sentence(" ".join([o for i in p_o for o in i])),
+            #                           AVAILABLE_TYPES_NUMBER-1])
+            
+
+            # id_dp, code_tks_dp, vth_dp = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+            #                              fn_n, p, " ".join([p[1] for p in fn_p]),
+            #                              str([nlp_prep.process_sentence(o) for i in p_o for o in i]))
+            # id_dps.append(id_dp)
+            # code_tks_dps.append(code_tks_dp)
+            # vth_dps.append(vth_dp)
+
             # The type of arguments for module-level functions
-            src_f_ext['funcs'][i]['params_p'][o_p] = infer_preds_score(param_type_embed)
+            #src_f_ext['funcs'][i]['params_p'][o_p] = infer_preds_score(param_type_embed)
 
         # The type of local variables for module-level functions
         fn['variables_p'] = {}
         for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
-            var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
-                                    str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
-                                    pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+            #type_slots_ref.append((src_f_ext['funcs'][i]['variables_p'], fn_v))
 
-            src_f_ext['funcs'][i]['variables_p'][fn_v] = infer_preds_score(var_type_embed)
+            vars_type_slots.append((src_f_ext['funcs'][i]['variables_p'], fn_v))
+            # var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+            #                         str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+            #                         pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+            vars_type_hints.append([nlp_prep.process_identifier(fn_v),
+                                   str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                                   AVAILABLE_TYPES_NUMBER-1])
+
+            # vars_type_hints.append([nlp_prep.process_identifier(fn_v),
+            #                         nlp_prep.process_sentence(" ".join([o for i in fn_v_o for o in i])),
+            #                         AVAILABLE_TYPES_NUMBER-1])
+
+            # id_dp, code_tks_dp, vth_dp = var2vec(nlp_prep.process_identifier(fn_v),
+            #                         str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+            #                         pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+            # id_dps.append(id_dp)
+            # code_tks_dps.append(code_tks_dp)
+            # vth_dps.append(vth_dp)
+
+            #src_f_ext['funcs'][i]['variables_p'][fn_v] = infer_preds_score(var_type_embed)
 
         # The return type for module-level functions
         if src_f_ext['funcs'][i]['ret_exprs'] != []:
+            # TODO: Unnecessary assignment?
             src_f_ext['funcs'][i]['ret_type_p'] = {}
-            ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
-                                    " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]))
+
+            #type_slots_ref.append((src_f_ext['funcs'][i], 'ret_type_p'))
+
+            rets_type_slots.append((src_f_ext['funcs'][i], 'ret_type_p'))
+            # ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+            #                         " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]))
+
+            rets_type_hints.append([fn_n, fn_p, " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]),
+                                    AVAILABLE_TYPES_NUMBER-1])
+
+            # id_dp, code_tks_dp, vth_dp = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+            #                                      " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]))
+            # id_dps.append(id_dp)
+            # code_tks_dps.append(code_tks_dp)
+            # vth_dps.append(vth_dp)
             
-            src_f_ext['funcs'][i]['ret_type_p'] = infer_preds_score(ret_type_embed)
+            #src_f_ext['funcs'][i]['ret_type_p'] = infer_preds_score(ret_type_embed)
     
     # The type of class-level vars
     for c_i, c in enumerate(src_f_ext['classes']):
         c['variables_p'] = {}
         for c_v, c_v_o in zip(c['variables'], c['cls_var_occur'].values()):
-            cls_var_type_embed = var2vec(nlp_prep.process_identifier(c_v),
-                                 str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
-                                 pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+            #type_slots_ref.append((src_f_ext['classes'][c_i]['variables_p'], c_v))
+
+            vars_type_slots.append((src_f_ext['classes'][c_i]['variables_p'], c_v))
+            # cls_var_type_embed = var2vec(nlp_prep.process_identifier(c_v),
+            #                      str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
+            #                      pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+            vars_type_hints.append([nlp_prep.process_identifier(c_v),
+                                    str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
+                                    AVAILABLE_TYPES_NUMBER-1])
+            # vars_type_hints.append([nlp_prep.process_identifier(c_v),
+            #                         nlp_prep.process_sentence(" ".join([o for i in c_v_o for o in i])),
+            #                         AVAILABLE_TYPES_NUMBER-1])
+
+            # id_dp, code_tks_dp, vth_dp = var2vec(nlp_prep.process_identifier(c_v),
+            #                      str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
+            #                      pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+            # id_dps.append(id_dp)
+            # code_tks_dps.append(code_tks_dp)
+            # vth_dps.append(vth_dp)
   
-            src_f_ext['classes'][c_i]['variables_p'][c_v] = infer_preds_score(cls_var_type_embed)
+            #src_f_ext['classes'][c_i]['variables_p'][c_v] = infer_preds_score(cls_var_type_embed)
 
         # The type of arguments for class-level functions
         # TODO: Ignore triavial funcs such as __str__
@@ -329,28 +506,100 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
             #fn_p = [nlp_prep.process_identifier(n) for n in fn['params'] if n != 'self']
             fn["params_p"] = {'self': [], 'args': [], 'kwargs': []}
             for o_p, p, p_o in fn_p:
-                param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
-                                            fn_n, p, " ".join([p[1] for p in fn_p]),
-                                            str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = []
+                #type_slots_ref.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'], o_p))
+
+                params_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'], o_p))
+                # param_type_embed = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+                #                             fn_n, p, " ".join([p[1] for p in fn_p]),
+                #                             str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
+
+                params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
+                                        str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]),
+                                        AVAILABLE_TYPES_NUMBER-1])
+
+                # params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
+                #                           nlp_prep.process_sentence(" ".join([o for i in p_o for o in i if o != "self"])),
+                #                         AVAILABLE_TYPES_NUMBER-1])
+
+                # id_dp, code_tks_dp, vth_dp = param2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model,
+                #                             fn_n, p, " ".join([p[1] for p in fn_p]),
+                #                             str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]))
+                # id_dps.append(id_dp)
+                # code_tks_dps.append(code_tks_dp)
+                # vth_dps.append(vth_dp)
                 
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = infer_preds_score(param_type_embed)
+                #src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = infer_preds_score(param_type_embed)
 
             # The type of local variables for class-level functions
             fn['variables_p'] = {}
             for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
-                var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
-                                    str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
-                                    pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+                src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = []
+                #type_slots_ref.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'], fn_v))
 
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = infer_preds_score(var_type_embed)
+                vars_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'], fn_v))
+                # var_type_embed = var2vec(nlp_prep.process_identifier(fn_v),
+                #                     str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                #                     pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+
+                vars_type_hints.append([nlp_prep.process_identifier(fn_v),
+                                       str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                                       AVAILABLE_TYPES_NUMBER-1])
+
+                # vars_type_hints.append([nlp_prep.process_identifier(fn_v),
+                #                         nlp_prep.process_sentence(" ".join([o for i in fn_v_o for o in i])),
+                #                         AVAILABLE_TYPES_NUMBER-1])
+
+                # id_dp, code_tks_dp, vth_dp = var2vec(nlp_prep.process_identifier(fn_v),
+                #                     str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
+                #                     pre_trained_m.w2v_model, pre_trained_m.type4py_model)
+                # id_dps.append(id_dp)
+                # code_tks_dps.append(code_tks_dp)
+                # vth_dps.append(vth_dp)
+
+                #src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = infer_preds_score(var_type_embed)
                 
             # The return type for class-level functions
             if src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_exprs'] != []:
                 src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = {}
-                ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
-                                        " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]))
+                #type_slots_ref.append((src_f_ext['classes'][c_i]['funcs'][fn_i], 'ret_type_p'))
+
+                rets_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i], 'ret_type_p'))
+
+                # ret_type_embed = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+                #                          " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]))
+
+                rets_type_hints.append([fn_n, fn_p,
+                                        " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]),
+                                        AVAILABLE_TYPES_NUMBER-1])
+
+                # id_dp, code_tks_dp, vth_dp = ret2vec(pre_trained_m.w2v_model, pre_trained_m.type4py_model, fn_n, fn_p,
+                #                          " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]))
+                # id_dps.append(id_dp)
+                # code_tks_dps.append(code_tks_dp)
+                # vth_dps.append(vth_dp)
                 
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = infer_preds_score(ret_type_embed)
+                #src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = infer_preds_score(ret_type_embed)
+
+    
+    vars_id_dp, vars_code_tks_dp, vars_vth_dp = var2vec(vars_type_hints, pre_trained_m.w2v_model)
+    params_id_dp, params_code_tks_dp, params_vth_dp = param2vec(params_type_hints, pre_trained_m.w2v_model)
+    rets_id_dp, rets_code_tks_dp, rets_vth_dp = ret2vec(rets_type_hints, pre_trained_m.w2v_model)
+
+    id_dps = np.concatenate((vars_id_dp, params_id_dp, rets_id_dp))
+    code_tks_dps = np.concatenate((vars_code_tks_dp, params_code_tks_dp, rets_code_tks_dp))
+    vth_dps = np.concatenate((vars_vth_dp, params_vth_dp, rets_vth_dp))
+    type_slots = vars_type_slots + params_type_slots + rets_type_slots
+
+
+    logger.info("Extracted TS")
+    # id_dps = np.concatenate(id_dps)
+    # code_tks_dps = np.concatenate(code_tks_dps)
+    # vth_dps = np.concatenate(vth_dps)
+
+    for i, ts_preds in enumerate(infer_preds_score(type_embed_single_dp(pre_trained_m.type4py_model, id_dps,
+                                                                        code_tks_dps, vth_dps))):
+        type_slots[i][0][type_slots[i][1]] = ts_preds
 
     return src_f_ext
 
@@ -827,4 +1076,3 @@ def infer_main(pre_trained_model_path: str, source_file_path: str):
 
     # src_f_ext = type_annotate_file(pre_trained_m, source_file_path)
     # save_json(join(pre_trained_model_path, splitext(basename(source_file_path))[0]+"_typed.json"), src_f_ext)
-
