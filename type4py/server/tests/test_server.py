@@ -2,6 +2,7 @@ from libsa4py.utils import read_file, load_json
 from typing import Dict, List, Tuple
 import unittest
 import requests
+import pytest
 
 
 class TestPredictEndpoint(unittest.TestCase):
@@ -11,7 +12,13 @@ class TestPredictEndpoint(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.TYPE4PY_PRED_EP = "https://type4py.com/api/predict?tc=0"
+
+    @pytest.fixture(autouse=True)
+    def __set_env(self, pytestconfig):
+        if pytestconfig.getoption("env") == 'dev':
+            self.TYPE4PY_PRED_EP = "http://localhost:5001/api/predict?tc=0"
+        else:
+            self.TYPE4PY_PRED_EP = "https://type4py.com/api/predict?tc=0"
 
     @classmethod
     def setUpClass(cls):
