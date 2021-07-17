@@ -21,5 +21,5 @@ jobs:
         pip install pytest libsa4py
     - name: Test with pytest
       run: |
-        cd type4py/type4py/server/tests
+        cd type4py/server/tests
         pytest . --ignore=resources
