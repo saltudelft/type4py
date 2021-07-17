@@ -1,4 +1,4 @@
-name: Python package
+name: Type4Py Server
 
 on: [push]
 
