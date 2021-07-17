@@ -1,0 +1,12 @@
+# This is the configuration for development
+MODEL_PATH = ""
+RATE_LIMIT = false
+PRE_READ_TYPE_CLUSTER = false
+MAX_LOC = 1000
+DEVICE = "gpu"
+APP_SECRET_KEY = ""
+
+# Database
+DB_NAME = ""
+DB_USER = ""
+DB_PASS = ""
