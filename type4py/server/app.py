@@ -2,10 +2,16 @@ from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
+from os import getenv
 import toml
 
 app = Flask(__name__)
-app.config.from_file("config.toml", load=toml.load)
+
+if getenv("FLASK_ENV") == "development":
+    app.config.from_file("config_dev.toml", load=toml.load)
+else:
+    app.config.from_file("config.toml", load=toml.load)
+
 app.secret_key = app.config['APP_SECRET_KEY']
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
