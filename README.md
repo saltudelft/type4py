@@ -1,4 +1,6 @@
 # Type4Py: Deep Similarity Learning-Based Type Inference for Python
+![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/type4py_server_test.yaml/badge.svg)
+
 This repository contains the implementation of Type4Py and instructions for re-producing the results of the paper.
 
 - [Dataset](#dataset)
