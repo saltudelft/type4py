@@ -23,6 +23,7 @@ from libcst.metadata import MetadataWrapper, TypeInferenceProvider
 from libcst import parse_module
 from annoy import AnnoyIndex
 from os.path import basename, join, splitext, dirname
+from argparse import ArgumentParser
 from enum import Enum
 from gensim.models import Word2Vec
 from tqdm import tqdm
@@ -345,7 +346,7 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
         return type_embeds_preds
 
 
-    nlp_prep = NLPreprocessor(lemmatize=True)
+    nlp_prep = NLPreprocessor()
 
     vars_type_slots = []
     params_type_slots = []
@@ -940,3 +941,16 @@ def infer_main(pre_trained_model_path: str, source_file_path: str):
 
     # src_f_ext = type_annotate_file(pre_trained_m, source_file_path)
     # save_json(join(pre_trained_model_path, splitext(basename(source_file_path))[0]+"_typed.json"), src_f_ext)
+
+if __name__ == '__main__':
+
+    arg_parser = ArgumentParser(description="Infering type annotations for a Python file")
+    arg_parser.add_argument("--m", required=True, type=str, help="Path to the pre-trained Type4Py model")
+    arg_parser.add_argument("--f", required=True, type=str, help="Path to a source code file")
+
+    args = arg_parser.parse_args()
+
+    t4py_pretrained_m = PretrainedType4Py(args.m, "gpu", False)
+    t4py_pretrained_m.load_pretrained_model()
+
+    type_annotate_file(t4py_pretrained_m, None, args.f)
