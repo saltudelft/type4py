@@ -44,20 +44,22 @@ class AcceptedTypes(sqla.Model):
 
     id = sqla.Column(sqla.Integer, primary_key=True)
     sess_id = sqla.Column(sqla.String, nullable=False)
-    accepted_type = sqla.Column(sqla.String, nullable=False)
-    rank = sqla.Column(sqla.Integer, nullable=False)
+    accepted_type = sqla.Column(sqla.String)
+    rank = sqla.Column(sqla.Integer)
     type_slot = sqla.Column(sqla.Enum(TypeSlots, create_type=False), nullable=False)
     id_name = sqla.Column(sqla.String, nullable=False)
     id_ln = sqla.Column(sqla.Integer, nullable=False)
+    canceled_preds = sqla.Column(sqla.Boolean, nullable=False)
     filtered_preds = sqla.Column(sqla.Boolean, nullable=False)
     timestamp = sqla.Column(sqla.DateTime(timezone=True), server_default=sqla.func.now())
 
     def __init__(self, sess_id, accepted_type, rank, type_slot,
-                 id_name, id_ln, filtered_preds):
+                 id_name, id_ln, canceled_preds, filtered_preds):
         self.sess_id = sess_id
         self.accepted_type = accepted_type
         self.rank = rank
         self.type_slot = type_slot
         self.id_name = id_name
         self.id_ln = id_ln
+        self.canceled_preds = canceled_preds
         self.filtered_preds = filtered_preds

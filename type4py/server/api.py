@@ -53,9 +53,9 @@ def submit_accepted_types():
     Stores accepted types from the VSCode based on users' consent.
     """
     if is_session_id_valid(request.args.get('sid')):
-        app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} | sess: {request.args.get('sid')}")
+        app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} {int(request.args.get('cp'))} | sess: {request.args.get('sid')}")
         return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 
-                                request.args.get('idn'), request.args.get('tsl'), int(request.args.get('fp')),
-                                response='Thanks for submitting accepted types!').get()
+                                  request.args.get('idn'), request.args.get('tsl'), int(request.args.get('cp')),
+                                  int(request.args.get('fp')), response='Thanks for submitting accepted types!').get()
     else:
         return AcceptTypeResponse(None, response=None, error="Invalid sessionID!").get()
