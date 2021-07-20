@@ -17,14 +17,17 @@ class PredictReqs(sqla.Model):
     id = sqla.Column(sqla.Integer, primary_key=True)
     hashed_IP = sqla.Column(sqla.String, nullable=False)
     sess_id = sqla.Column(sqla.String, nullable=False)
+    file_hash = sqla.Column(sqla.String)
     start_t = sqla.Column(sqla.DateTime, nullable=False)
     finished_t = sqla.Column(sqla.DateTime, nullable=False)
     error = sqla.Column(sqla.String)
     extracted_features = sqla.Column(sqla.JSON)
 
-    def __init__(self, hashed_IP, sess_id, start_t, finished_t, error, extracted_features):
+    def __init__(self, hashed_IP, sess_id, file_hash, start_t, finished_t,
+                 error, extracted_features):
         self.hashed_IP = hashed_IP
         self.sess_id = sess_id
+        self.file_hash = file_hash
         self.start_t= start_t
         self.finished_t = finished_t
         self.error = error
