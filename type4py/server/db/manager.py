@@ -22,9 +22,10 @@ class PredictReqs(sqla.Model):
     finished_t = sqla.Column(sqla.DateTime, nullable=False)
     error = sqla.Column(sqla.String)
     extracted_features = sqla.Column(sqla.JSON)
+    extension_ver = sqla.Column(sqla.String)
 
     def __init__(self, hashed_IP, sess_id, file_hash, start_t, finished_t,
-                 error, extracted_features):
+                 error, extracted_features, extension_ver):
         self.hashed_IP = hashed_IP
         self.sess_id = sess_id
         self.file_hash = file_hash
@@ -32,6 +33,7 @@ class PredictReqs(sqla.Model):
         self.finished_t = finished_t
         self.error = error
         self.extracted_features = extracted_features
+        self.extension_ver = extension_ver
 
 class AcceptedTypes(sqla.Model):
     """
