@@ -16,6 +16,7 @@ class PredictReqs(sqla.Model):
 
     id = sqla.Column(sqla.Integer, primary_key=True)
     hashed_IP = sqla.Column(sqla.String, nullable=False)
+    act_id = sqla.Column(sqla.String)
     sess_id = sqla.Column(sqla.String, nullable=False)
     file_hash = sqla.Column(sqla.String)
     start_t = sqla.Column(sqla.DateTime, nullable=False)
@@ -24,9 +25,10 @@ class PredictReqs(sqla.Model):
     extracted_features = sqla.Column(sqla.JSON)
     extension_ver = sqla.Column(sqla.String)
 
-    def __init__(self, hashed_IP, sess_id, file_hash, start_t, finished_t,
+    def __init__(self, hashed_IP, act_id, sess_id, file_hash, start_t, finished_t,
                  error, extracted_features, extension_ver):
         self.hashed_IP = hashed_IP
+        self.act_id = act_id
         self.sess_id = sess_id
         self.file_hash = file_hash
         self.start_t= start_t
