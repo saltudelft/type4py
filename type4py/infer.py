@@ -304,7 +304,8 @@ def apply_inferred_types(in_src_f: str, in_src_f_dict: dict, out_src_f_path: str
     write_file(out_src_f_path, f_parsed.code)
 
 
-def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_pred_types:bool=True) -> dict:
+def get_type_preds_single_file(src_f_ext:dict, all_type_slots: Tuple[list], all_type_hints: Tuple[list],
+                               pre_trained_m: PretrainedType4Py, filter_pred_types:bool=True) -> dict:
     """
     Infers type annotations for the whole source code file
     """
@@ -345,38 +346,71 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
         
         return type_embeds_preds
 
+    vars_type_hints, params_type_hints, rets_type_hints = all_type_hints
+    # Data points for prediction
+    id_dps = []
+    code_tks_dps = []
+    vth_dps = []
+    if len(vars_type_hints) != 0:
+        vars_id_dp, vars_code_tks_dp, vars_vth_dp = var2vec(vars_type_hints, pre_trained_m.w2v_model)
+        id_dps += [vars_id_dp]
+        code_tks_dps += [vars_code_tks_dp]
+        vth_dps += [vars_vth_dp]
+    if len(params_type_hints) != 0:
+        params_id_dp, params_code_tks_dp, params_vth_dp = param2vec(params_type_hints, pre_trained_m.w2v_model)
+        id_dps += [params_id_dp]
+        code_tks_dps += [params_code_tks_dp]
+        vth_dps += [params_vth_dp]
+    if len(rets_type_hints) != 0:
+        rets_id_dp, rets_code_tks_dp, rets_vth_dp = ret2vec(rets_type_hints, pre_trained_m.w2v_model)
+        id_dps += [rets_id_dp]
+        code_tks_dps += [rets_code_tks_dp]
+        vth_dps += [rets_vth_dp]
+    
+    if len(id_dps) > 1:
+        id_dps = np.concatenate(tuple(id_dps))
+        code_tks_dps = np.concatenate(tuple(code_tks_dps))
+        vth_dps = np.concatenate(tuple(vth_dps))
+    else:
+        id_dps, code_tks_dps, vth_dps = id_dps[0], code_tks_dps[0], vth_dps[0]
+     
+    for i, ts_preds in enumerate(infer_preds_score(type_embed_single_dp(pre_trained_m.type4py_model, id_dps,
+                                                                        code_tks_dps, vth_dps))):
+        all_type_slots[i][0][all_type_slots[i][1]] = ts_preds
 
+    return src_f_ext
+
+def get_dps_single_file(ext_type_hints: dict) -> Tuple[list]:
+    """
+    It extracts data points from a single file for the model
+    """
     nlp_prep = NLPreprocessor()
 
     vars_type_slots = []
     params_type_slots = []
     rets_type_slots = []
 
-    id_dps: List[np.array] = []
-    code_tks_dps: List[np.array] = []
-    vth_dps: List[np.array] = []
-
+    vars_type_hints = []
     params_type_hints = []
     rets_type_hints = []
-    vars_type_hints = []
-
+    
     # Storing Type4Py's predictions
-    src_f_ext['variables_p'] = {}
-    for m_v, m_v_o in zip(src_f_ext['variables'], src_f_ext['mod_var_occur'].values()):
+    ext_type_hints['variables_p'] = {}
+    for m_v, m_v_o in zip(ext_type_hints['variables'], ext_type_hints['mod_var_occur'].values()):
         
-        vars_type_slots.append((src_f_ext['variables_p'], m_v))
+        vars_type_slots.append((ext_type_hints['variables_p'], m_v))
        
         vars_type_hints.append([nlp_prep.process_identifier(m_v),
                                str([nlp_prep.process_sentence(o) for i in m_v_o for o in i]), 
                                AVAILABLE_TYPES_NUMBER-1])
         
-    for i, fn in enumerate(src_f_ext['funcs']):
+    for i, fn in enumerate(ext_type_hints['funcs']):
         fn_n = nlp_prep.process_identifier(fn['name'])
         fn_p = [(n, nlp_prep.process_identifier(n), o) for n, o in zip(fn['params'], fn["params_occur"].values()) if n not in {'args', 'kwargs'}]
         fn['params_p'] = {'args': [], 'kwargs': []}
         for o_p, p, p_o in fn_p:
 
-            params_type_slots.append((src_f_ext['funcs'][i]['params_p'], o_p))
+            params_type_slots.append((ext_type_hints['funcs'][i]['params_p'], o_p))
 
             params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
                                      str([nlp_prep.process_sentence(o) for i in p_o for o in i]),
@@ -386,28 +420,28 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
         fn['variables_p'] = {}
         for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
 
-            vars_type_slots.append((src_f_ext['funcs'][i]['variables_p'], fn_v))
+            vars_type_slots.append((ext_type_hints['funcs'][i]['variables_p'], fn_v))
        
             vars_type_hints.append([nlp_prep.process_identifier(fn_v),
                                    str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
                                    AVAILABLE_TYPES_NUMBER-1])
 
         # The return type for module-level functions
-        if src_f_ext['funcs'][i]['ret_exprs'] != []:
+        if ext_type_hints['funcs'][i]['ret_exprs'] != []:
             # TODO: Unnecessary assignment?
-            src_f_ext['funcs'][i]['ret_type_p'] = {}
+            ext_type_hints['funcs'][i]['ret_type_p'] = {}
 
-            rets_type_slots.append((src_f_ext['funcs'][i], 'ret_type_p'))
+            rets_type_slots.append((ext_type_hints['funcs'][i], 'ret_type_p'))
 
             rets_type_hints.append([fn_n, fn_p, " ".join([nlp_prep.process_identifier(r.replace('return ', '')) for r in fn['ret_exprs']]),
                                     AVAILABLE_TYPES_NUMBER-1])
     
     # The type of class-level vars
-    for c_i, c in enumerate(src_f_ext['classes']):
+    for c_i, c in enumerate(ext_type_hints['classes']):
         c['variables_p'] = {}
         for c_v, c_v_o in zip(c['variables'], c['cls_var_occur'].values()):
 
-            vars_type_slots.append((src_f_ext['classes'][c_i]['variables_p'], c_v))
+            vars_type_slots.append((ext_type_hints['classes'][c_i]['variables_p'], c_v))
          
             vars_type_hints.append([nlp_prep.process_identifier(c_v),
                                     str([nlp_prep.process_sentence(o) for i in c_v_o for o in i]),
@@ -422,9 +456,9 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
             fn["params_p"] = {'self': [], 'args': [], 'kwargs': []}
 
             for o_p, p, p_o in fn_p:
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = []
+                ext_type_hints['classes'][c_i]['funcs'][fn_i]['params_p'][o_p] = []
 
-                params_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['params_p'], o_p))
+                params_type_slots.append((ext_type_hints['classes'][c_i]['funcs'][fn_i]['params_p'], o_p))
 
                 params_type_hints.append([fn_n, p, " ".join([p[1] for p in fn_p]),
                                         str([nlp_prep.process_sentence(o) for i in p_o for o in i if o != "self"]),
@@ -433,40 +467,26 @@ def infer_single_file(src_f_ext: dict, pre_trained_m: PretrainedType4Py, filter_
             # The type of local variables for class-level functions
             fn['variables_p'] = {}
             for fn_v, fn_v_o in zip(fn['variables'], fn['fn_var_occur'].values()):
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = []
+                ext_type_hints['classes'][c_i]['funcs'][fn_i]['variables_p'][fn_v] = []
 
-                vars_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i]['variables_p'], fn_v))
+                vars_type_slots.append((ext_type_hints['classes'][c_i]['funcs'][fn_i]['variables_p'], fn_v))
 
                 vars_type_hints.append([nlp_prep.process_identifier(fn_v),
                                        str([nlp_prep.process_sentence(o) for i in fn_v_o for o in i]),
                                        AVAILABLE_TYPES_NUMBER-1])
                 
             # The return type for class-level functions
-            if src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_exprs'] != []:
-                src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = {}
+            if ext_type_hints['classes'][c_i]['funcs'][fn_i]['ret_exprs'] != []:
+                ext_type_hints['classes'][c_i]['funcs'][fn_i]['ret_type_p'] = {}
 
-                rets_type_slots.append((src_f_ext['classes'][c_i]['funcs'][fn_i], 'ret_type_p'))
+                rets_type_slots.append((ext_type_hints['classes'][c_i]['funcs'][fn_i], 'ret_type_p'))
 
                 rets_type_hints.append([fn_n, fn_p,
                                         " ".join([regex.sub(r"self\.?", '', nlp_prep.process_identifier(r.replace('return ', ''))) for r in fn['ret_exprs']]),
                                         AVAILABLE_TYPES_NUMBER-1])
 
-    vars_id_dp, vars_code_tks_dp, vars_vth_dp = var2vec(vars_type_hints, pre_trained_m.w2v_model)
-    params_id_dp, params_code_tks_dp, params_vth_dp = param2vec(params_type_hints, pre_trained_m.w2v_model)
-    rets_id_dp, rets_code_tks_dp, rets_vth_dp = ret2vec(rets_type_hints, pre_trained_m.w2v_model)
-
-    id_dps = np.concatenate((vars_id_dp, params_id_dp, rets_id_dp))
-    code_tks_dps = np.concatenate((vars_code_tks_dp, params_code_tks_dp, rets_code_tks_dp))
-    vth_dps = np.concatenate((vars_vth_dp, params_vth_dp, rets_vth_dp))
-    type_slots = vars_type_slots + params_type_slots + rets_type_slots
-
-    logger.info("Extracted type hints/features")
-  
-    for i, ts_preds in enumerate(infer_preds_score(type_embed_single_dp(pre_trained_m.type4py_model, id_dps,
-                                                                        code_tks_dps, vth_dps))):
-        type_slots[i][0][type_slots[i][1]] = ts_preds
-
-    return src_f_ext
+    return vars_type_slots + params_type_slots + rets_type_slots, vars_type_hints, params_type_hints, \
+           rets_type_hints
 
 
 class PredictionType(Enum):
@@ -870,7 +890,7 @@ def infer_json_pred(pre_trained_m: PretrainedType4Py, source_file_path: str):
     logger.info("Extracted type hints and JSON-representation of input source file")
 
     logger.info("Predicting type annotations for the given file")
-    src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
+    src_f_ext = get_type_preds_single_file(src_f_ext, pre_trained_m)
 
     save_json(join(dirname(source_file_path),
                               splitext(basename(source_file_path))[0]+"_type4py_typed.json"), src_f_ext)
@@ -903,10 +923,15 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
     else:
         src_f_read = source_code
     #src_f_ext = analyze_src_f(src_f_read).to_dict()
-    src_f_ext = Extractor.extract(src_f_read, include_seq2seq=False).to_dict()
-    logger.info("Extracted type hints and JSON-representation of input source file")
-    
-    src_f_ext = infer_single_file(src_f_ext, pre_trained_m, filter_pred_types)
+    ext_type_hints = Extractor.extract(src_f_read, include_seq2seq=False).to_dict()
+    logger.info("Extracted JSON-representation of input source file")
+
+    all_type_slots, vars_type_hints, params_type_hints, rets_type_hints = get_dps_single_file(ext_type_hints)
+    logger.info("Extracted type hints from JSON")
+
+    ext_type_hints = get_type_preds_single_file(ext_type_hints, all_type_slots,
+                                                (vars_type_hints, params_type_hints, rets_type_hints),
+                                                pre_trained_m, filter_pred_types)
     logger.info("Predicted type annotations for the given file")
 
     # type_check_inferred_types(src_f_ext, src_f_read, join(dirname(source_file_path),
@@ -914,14 +939,14 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
 
     # src_f_ext = get_type_checked_preds(src_f_ext, src_f_read, source_file_path)
 
-    return src_f_ext
+    return ext_type_hints
 
 def predict_types_src_code(pre_trained_m: PretrainedType4Py, src_code: str) -> dict:
     src_f_ext = analyze_src_f(src_code).to_dict()
     logger.info("Extracted type hints and JSON-representation of input source file")
 
     logger.info("Predicting type annotations for the given file:")
-    src_f_ext = infer_single_file(src_f_ext, pre_trained_m)
+    src_f_ext = get_type_preds_single_file(src_f_ext, pre_trained_m)
 
     return src_f_ext
 
