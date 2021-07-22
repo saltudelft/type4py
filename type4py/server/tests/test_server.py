@@ -1,3 +1,4 @@
+from locale import NOEXPR
 from libsa4py.utils import read_file, load_json
 from typing import Dict, List, Tuple
 import unittest
@@ -25,10 +26,12 @@ class TestPredictEndpoint(unittest.TestCase):
         # Input files to test the predict endpoint
         cls.test_file1 = read_file('./resources/test_file1.py')
         cls.test_file2 = read_file('./resources/test_file2.py')
+        cls.test_file3 = read_file('./resources/test_file3.py')
 
         # Expected JSON response from the server
         cls.test_file1_exp = load_json('./resources/test_file1_exp.json')
         cls.test_file2_exp = load_json('./resources/test_file2_exp.json')
+        cls.test_file3_exp = load_json('./resources/test_file3_exp.json')
 
     def __get_preds_from_JSON(self, file_json_repr: dict) -> List[Dict[str, List[Tuple[str, float]]]]:
 
@@ -58,10 +61,12 @@ class TestPredictEndpoint(unittest.TestCase):
 
     def test_preds_file1(self):
         r = requests.post(self.TYPE4PY_PRED_EP, self.test_file1)
-        
         self.assertEqual(self.__get_preds_from_JSON(r.json()['response']), self.__get_preds_from_JSON(self.test_file1_exp))
 
     def test_preds_file2(self):
         r = requests.post(self.TYPE4PY_PRED_EP, self.test_file2)
-        
         self.assertEqual(self.__get_preds_from_JSON(r.json()['response']), self.__get_preds_from_JSON(self.test_file2_exp))
+
+    def test_preds_file3(self):
+        r = requests.post(self.TYPE4PY_PRED_EP, self.test_file3)
+        self.assertEqual(self.__get_preds_from_JSON(r.json()['response']), self.__get_preds_from_JSON(self.test_file3_exp))
