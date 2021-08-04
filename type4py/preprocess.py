@@ -1,71 +1,122 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from type4py import logger
-from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns
+from type4py import logger, AVAILABLE_TYPES_NUMBER, MAX_PARAM_TYPE_DEPTH
+from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns, create_dataframe_vars
+from libsa4py.cst_transformers import ParametricTypeDepthReducer
+from libsa4py.cst_lenient_parser import lenient_parse_module
 from libsa4py.utils import list_files
+from typing import Tuple
 from ast import literal_eval
 from collections import Counter
+from os.path import exists, join
 from tqdm import tqdm
-import re
+import regex
 import os
 import pickle
 import pandas as pd
 import numpy as np
 
 logger.name = __name__
+tqdm.pandas()
 
 # Precompile often used regex
-first_cap_regex = re.compile('(.)([A-Z][a-z]+)')
-all_cap_regex = re.compile('([a-z0-9])([A-Z])')
+first_cap_regex = regex.compile('(.)([A-Z][a-z]+)')
+all_cap_regex = regex.compile('([a-z0-9])([A-Z])')
+sub_regex = r'typing\.|typing_extensions\.|t\.|builtins\.|collections\.'
 
-def make_types_consistent(df_all: pd.DataFrame) -> pd.DataFrame:
+
+def make_types_consistent(df_all: pd.DataFrame, df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Removes typing module from type annotations
     """
-    
-    df_all['return_type'] = df_all['return_type'].apply(lambda x: re.sub(r'typing\.|t\.|builtins\.', "", str(x)) if x else x)
-    df_all['arg_types'] = df_all['arg_types'].apply(lambda x: str([re.sub(r'typing\.|t\.|builtins\.', "", t) \
-                                                       if t else t for t in literal_eval(x)]))
-    
-    return df_all
 
-def resolve_type_aliasing(df_all: pd.DataFrame) -> pd.DataFrame:
+    def remove_quote_types(t: str):
+        s = regex.search(r'^\'(.+)\'$', t)
+        if bool(s):
+            return s.group(1)
+        else:
+            #print(t)
+            return t
+    
+    df_all['return_type'] = df_all['return_type'].progress_apply(lambda x: regex.sub(sub_regex, "", str(x)) if x else x)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([regex.sub(sub_regex, "", t) \
+                                                       if t else t for t in literal_eval(x)]))
+    df_all['return_type'] = df_all['return_type'].progress_apply(remove_quote_types)
+    df_all['arg_types'] = df_all['arg_types'].progress_apply(lambda x: str([remove_quote_types(t) if t else t for t in literal_eval(x)]))
+
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(lambda x: regex.sub(sub_regex, "", str(x)))
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(remove_quote_types)
+    
+    return df_all, df_vars
+
+def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
+                          df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Resolves type aliasing and mappings. e.g. `[]` -> `list`
     """
+    import libcst as cst
+    # Problematic patterns: (?<=.*)Tuple\[Any, *?.*?\](?<=.*)
+    # TODO: Handle a case like Dict[str, any] -> Dict[str, Any]
+    type_aliases = {'^{}$|^Dict$|^Dict\[\]$|(?<=.*)Dict\[Any, *?Any\](?=.*)|^Dict\[unknown, *Any\]$': 'dict',
+                    '^Set$|(?<=.*)Set\[\](?<=.*)|^Set\[Any\]$': 'set',
+                    '^Tuple$|(?<=.*)Tuple\[\](?<=.*)|^Tuple\[Any\]$|(?<=.*)Tuple\[Any, *?\.\.\.\](?=.*)|^Tuple\[unknown, *?unknown\]$|^Tuple\[unknown, *?Any\]$|(?<=.*)tuple\[\](?<=.*)': 'tuple',
+                    '^Tuple\[(.+), *?\.\.\.\]$': r'Tuple[\1]',
+                    '\\bText\\b': 'str',
+                    '^\[\]$|(?<=.*)List\[\](?<=.*)|^List\[Any\]$|^List$': 'list',
+                    '^\[{}\]$': 'List[dict]',
+                    '(?<=.*)Literal\[\'.*?\'\](?=.*)': 'Literal',
+                    '(?<=.*)Literal\[\d+\](?=.*)': 'Literal', # Maybe int?!
+                    '^Callable\[\.\.\., *?Any\]$|^Callable\[\[Any\], *?Any\]$|^Callable[[Named(x, Any)], Any]$': 'Callable',
+                    '^Iterator[Any]$': 'Iterator',
+                    '^OrderedDict[Any, *?Any]$': 'OrderedDict',
+                    '^Counter[Any]$': 'Counter',
+                    '(?<=.*)Match[Any](?<=.*)': 'Match'}
 
-    def resolve_alias(alias_dict: dict, t: str):
-        for t_alias in alias_dict:
-            if re.search(re.compile(t_alias), t):
-                return re.sub(re.compile(t_alias), alias_dict[t_alias], t)
-        return None
+    def resolve_type_alias(t: str):
+        org_t = t
+        for t_alias in type_aliases:
+            if regex.search(regex.compile(t_alias), t):
+                t = regex.sub(regex.compile(t_alias), type_aliases[t_alias], t)
+        return t
 
-    def resolve_type_alias_params(types_list):
-        type_alias_params = {'^{}$': 'dict', '\\bText\\b': 'str', '^\[\]$': 'list'}
-        params_types = []
-        for t in literal_eval(types_list):
-            resolved_alias = resolve_alias(type_alias_params, t)
-            if resolved_alias:
-                params_types.append(resolved_alias)
-            else:
-                params_types.append(t)
-            
-        return str(params_types)
+    df_param['arg_type'] = df_param['arg_type'].progress_apply(resolve_type_alias)
+    df_ret['return_type'] = df_ret['return_type'].progress_apply(resolve_type_alias)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(resolve_type_alias)
 
-    def resolve_type_alias_ret(ret_type):
-        type_alias_ret = {'^{}$': 'dict', '\\bText\\b': 'str', '^\[{}\]$': 'List[dict]',
-                          '^\[\]$': 'list'}
-        if ret_type:
-            resolved_alias = resolve_alias(type_alias_ret, str(ret_type))
-            if resolved_alias:
-                return resolved_alias
-        
-        return ret_type
+    return df_param, df_ret, df_vars
 
-    df_all['return_type'] = df_all['return_type'].apply(resolve_type_alias_ret)
-    df_all['arg_types'] = df_all['arg_types'].apply(resolve_type_alias_params)
+def preprocess_parametric_types(df_param: pd.DataFrame, df_ret: pd.DataFrame,
+                                df_vars: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Reduces the depth of parametric types
+    """
+    from libcst import parse_module, ParserSyntaxError
+    global s
+    s = 0
+    def reduce_depth_param_type(t: str) -> str:
+        global s
+        if regex.match(r'.+\[.+\]', t):
+            try:
+                t = parse_module(t)
+                t = t.visit(ParametricTypeDepthReducer(max_annot_depth=MAX_PARAM_TYPE_DEPTH))
+                return t.code
+            except ParserSyntaxError:
+                try:
+                    t = lenient_parse_module(t)
+                    t = t.visit(ParametricTypeDepthReducer(max_annot_depth=MAX_PARAM_TYPE_DEPTH))
+                    s += 1
+                    return t.code
+                except ParserSyntaxError:
+                    return None
+        else:
+            return t
 
-    return df_all
+    df_param['arg_type'] = df_param['arg_type'].progress_apply(reduce_depth_param_type)
+    df_ret['return_type'] = df_ret['return_type'].progress_apply(reduce_depth_param_type)
+    df_vars['var_type'] = df_vars['var_type'].progress_apply(reduce_depth_param_type)
+    logger.info(f"Sucssesfull lenient parsing {s}")
+
+    return df_param, df_ret, df_vars
 
 def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', 'doc', 'sizeof']) -> pd.DataFrame:
     """
@@ -81,6 +132,32 @@ def filter_functions(df: pd.DataFrame, funcs=['str', 'unicode', 'repr', 'len', '
     logger.info(f"Filtered out {df_len - len(df):,} functions.")
 
     return df
+
+def filter_variables(df_vars: pd.DataFrame, types=['Any', 'None', 'object', 'type', 'Type[Any]',
+                                                   'Type[cls]', 'Type[type]', 'Type', 'TypeVar', 'Optional[Any]']):
+    """
+    Filters out variables with specified types such as Any or None
+    """
+
+    df_var_len = len(df_vars)
+    logger.info(f"Variables before dropping on {','.join(types)}: {len(df_vars):,}")
+    df_vars = df_vars[~df_vars['var_type'].isin(types)]
+    logger.info(f"Variables after dropping on {','.join(types)}: {len(df_vars):,}")
+    logger.info(f"Filtered out {df_var_len - len(df_vars):,} variables.")
+
+    return df_vars
+
+def filter_var_wo_type(df_vars: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filters out variables without a type
+    """
+    df_var_len = len(df_vars)
+    logger.info(f"Variables before dropping: {len(df_vars):,}")
+    df_vars = df_vars[df_vars['var_type'].notnull()]
+    logger.info(f"Variables after dropping dropping: {len(df_vars):,}")
+    logger.info(f"Filtered out {df_var_len - len(df_vars):,} variables w/o a type.")
+
+    return df_vars
 
 def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -99,7 +176,9 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
             arg_type = literal_eval(row['arg_types'])[p_i].strip('\"')
 
             # Ignore Any or None types
-            if arg_type == '' or arg_type == 'Any' or arg_type == 'None':
+            # TODO: Ignore also object type
+            # TODO: Ignore Optional[Any]
+            if arg_type == '' or arg_type in {'Any', 'None', 'object'}:
                 continue
 
             arg_descr = literal_eval(row['arg_descrs'])[p_i]
@@ -138,13 +217,15 @@ def format_df(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame,
+def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame, df_vars: pd.DataFrame,
                      output_dir: str):
-    all_types = np.concatenate((df_ret['return_type'].values, df_params['arg_type'].values), axis=0)
+    all_types = np.concatenate((df_ret['return_type'].values, df_params['arg_type'].values,
+                                df_vars['var_type'].values), axis=0)
     le_all = LabelEncoder()
     le_all.fit(all_types)
     df_ret['return_type_enc_all'] = le_all.transform(df_ret['return_type'].values)
     df_params['arg_type_enc_all'] = le_all.transform(df_params['arg_type'].values)
+    df_vars['var_type_enc_all'] = le_all.transform(df_vars['var_type'].values)
 
     unq_types, count_unq_types = np.unique(all_types, return_counts=True)
     pd.DataFrame(
@@ -181,7 +262,8 @@ def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024) ->
 
     return df
 
-def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_aval_types: pd.DataFrame):
+def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.DataFrame,
+                      df_aval_types: pd.DataFrame):
     """
     It encodes the type of parameters and return according to visible type hints
     """
@@ -195,8 +277,9 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_aval_type
         return len(types) - 1
 
     # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
-    df_param['param_aval_enc'] = df_param['arg_type'].apply(trans_aval_type)
-    df_ret['ret_aval_enc'] = df_ret['return_type'].apply(trans_aval_type)
+    df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
+    df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
+    df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
 
     return df_param, df_ret
 
@@ -205,16 +288,28 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     Applies preprocessing steps to the extracted functions
     """
 
-    logger.info("Merging JSON projects and loading functions' Dataframe")
-    create_dataframe_fns(output_dir, merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit))
+    logger.info("Merging JSON projects")
+    merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
+    logger.info("Creating functions' Dataframe")
+    create_dataframe_fns(output_dir, merged_jsons)
+    logger.info("Creating variables' Dataframe")
+    create_dataframe_vars(output_dir, merged_jsons)
+    logger.info("Loading vars & fns Dataframe")
     processed_proj_fns = pd.read_csv(os.path.join(output_dir, "all_fns.csv"), low_memory=False)
+    processed_proj_vars = pd.read_csv(os.path.join(output_dir, "all_vars.csv"), low_memory=False)
 
     # Split the processed files into train, validation and test sets
-    if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])):
+    if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])) and \
+       all(processed_proj_vars['set'].isin(['train', 'valid', 'test'])):
         logger.info("Found the sets split in the input dataset")
         train_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'train']
         valid_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'valid']
         test_files = processed_proj_fns['file'][processed_proj_fns['set'] == 'test']
+
+        train_files_vars = processed_proj_vars['file'][processed_proj_vars['set'] == 'train']
+        valid_files_vars = processed_proj_vars['file'][processed_proj_vars['set'] == 'valid']
+        test_files_vars = processed_proj_vars['file'][processed_proj_vars['set'] == 'test']
+
     else:
         logger.info("Splitting sets randomly")
         train_files, test_files = train_test_split(pd.DataFrame(processed_proj_fns['file'].unique(), columns=['file']),
@@ -229,21 +324,30 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     df_test = processed_proj_fns[processed_proj_fns['file'].isin(test_files.to_numpy().flatten())]
     logger.info(f"No. of functions in test set: {df_test.shape[0]:,}")
 
+    df_var_train = processed_proj_vars[processed_proj_vars['file'].isin(train_files_vars.to_numpy().flatten())]
+    logger.info(f"No. of variables in train set: {df_var_train.shape[0]:,}")
+    df_var_valid = processed_proj_vars[processed_proj_vars['file'].isin(valid_files_vars.to_numpy().flatten())]
+    logger.info(f"No. of variables in validation set: {df_var_valid.shape[0]:,}")
+    df_var_test = processed_proj_vars[processed_proj_vars['file'].isin(test_files_vars.to_numpy().flatten())]
+    logger.info(f"No. of variables in test set: {df_var_test.shape[0]:,}")
+
     assert list(set(df_train['file'].tolist()).intersection(set(df_test['file'].tolist()))) == []
     assert list(set(df_train['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
     assert list(set(df_test['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
 
+    # Exclude variables without a type
+    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
+
+    logger.info(f"Making type annotations consistent")
     # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
-    processed_proj_fns = make_types_consistent(processed_proj_fns)
+    processed_proj_fns, processed_proj_vars = make_types_consistent(processed_proj_fns, processed_proj_vars)
 
-    assert any([bool(re.match(r'.*typing\..+|.*t\..+|.*builtins\..+', str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(re.match(r'.*typing\..+|.*t\..+|.*builtins\..+', t)) for t in processed_proj_fns['arg_types']]) == False
+    assert any([bool(regex.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
+    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
+    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
 
-    # Resolves type aliasing and mappings. e.g. `[]` -> `list`
-    processed_proj_fns = resolve_type_aliasing(processed_proj_fns)
-
-    assert any([bool(re.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(re.match(r'^{}$|\bText\b|^\[\]$', t)) for type_list in processed_proj_fns['arg_types'] for t in literal_eval(type_list)]) == False
+    # Filters variables with type Any or None
+    processed_proj_vars = filter_variables(processed_proj_vars)
 
     # Filters trivial functions such as `__str__` and `__len__` 
     processed_proj_fns = filter_functions(processed_proj_fns)
@@ -253,22 +357,46 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
 
     # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
     processed_proj_fns = filter_return_dp(processed_proj_fns)
-
     processed_proj_fns = format_df(processed_proj_fns)
 
-    processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params, output_dir)
+    logger.info(f"Resolving type aliases")
+    # Resolves type aliasing and mappings. e.g. `[]` -> `list`
+    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns_params,
+                                                                                               processed_proj_fns,
+                                                                                               processed_proj_vars)
+
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', t)) for t in processed_proj_fns['return_type']]) == False
+    assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for t in processed_proj_fns_params['arg_type']]) == False
+
+    logger.info(f"Preproceessing parametric types")
+    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = preprocess_parametric_types(processed_proj_fns_params,
+                                                                                                     processed_proj_fns,
+                                                                                                     processed_proj_vars)
+    # Exclude variables without a type
+    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
+
+    processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
+                                                                             processed_proj_vars, output_dir)
 
     # Exclude self from arg names and return expressions
     processed_proj_fns['arg_names_str'] = processed_proj_fns['arg_names'].apply(lambda l: " ".join([v for v in l if v != 'self']))
-    processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([re.sub(r"self\.?", '', v) for v in l]))
+    processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([regex.sub(r"self\.?", '', v) for v in l]))
 
     # Drop all columns useless for the ML model
     processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
                          'return_expr'])
 
-    # Find most frequent visible type hints
-    df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir)
-    processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns, df_types)
+    # Visible type hints
+    if exists(join(output_dir, 'MT4Py_VTHs.csv')):
+        logger.info("Using visible type hints")
+        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+                                                                          processed_proj_vars,
+                                                                          pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER))
+    else:
+        logger.info("Using naive available type hints")
+        df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir, AVAILABLE_TYPES_NUMBER)
+        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+                                                                        processed_proj_vars, df_types)
 
     # Split parameters and returns type dataset by file into a train and test sets
     df_params_train = processed_proj_fns_params[processed_proj_fns_params['file'].isin(train_files.to_numpy().flatten())]
@@ -279,6 +407,11 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     df_ret_valid = processed_proj_fns[processed_proj_fns['file'].isin(valid_files.to_numpy().flatten())]
     df_ret_test = processed_proj_fns[processed_proj_fns['file'].isin(test_files.to_numpy().flatten())]
 
+    df_var_train = processed_proj_vars[processed_proj_vars['file'].isin(train_files_vars.to_numpy().flatten())]
+    df_var_valid = processed_proj_vars[processed_proj_vars['file'].isin(valid_files_vars.to_numpy().flatten())]
+    df_var_test = processed_proj_vars[processed_proj_vars['file'].isin(test_files_vars.to_numpy().flatten())]
+
+
     assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_test['file'].tolist()))) == []
     assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
     assert list(set(df_params_test['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
@@ -286,6 +419,10 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_test['file'].tolist()))) == []
     assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
     assert list(set(df_ret_test['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
+
+    assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_test['file'].tolist()))) == []
+    assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
+    assert list(set(df_var_test['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
 
     # Store the dataframes and the label encoders
     logger.info("Saving preprocessed functions on the disk...")
@@ -295,6 +432,11 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     df_params_train.to_csv(os.path.join(output_dir, "_ml_param_train.csv"), index=False)
     df_params_valid.to_csv(os.path.join(output_dir, "_ml_param_valid.csv"), index=False)
     df_params_test.to_csv(os.path.join(output_dir, "_ml_param_test.csv"), index=False)
+
     df_ret_train.to_csv(os.path.join(output_dir, "_ml_ret_train.csv"), index=False)
     df_ret_valid.to_csv(os.path.join(output_dir, "_ml_ret_valid.csv"), index=False)
     df_ret_test.to_csv(os.path.join(output_dir, "_ml_ret_test.csv"), index=False)
+
+    df_var_train.to_csv(os.path.join(output_dir, "_ml_var_train.csv"), index=False)
+    df_var_valid.to_csv(os.path.join(output_dir, "_ml_var_valid.csv"), index=False)
+    df_var_test.to_csv(os.path.join(output_dir, "_ml_var_test.csv"), index=False)

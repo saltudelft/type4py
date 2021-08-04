@@ -8,10 +8,8 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Citing Type4Py](#citing-type4py)
 
 # Dataset
-Type4Py dataset can be downloaded from [here](https://surfdrive.surf.nl/files/index.php/s/KobWgHFgXUgW4rA). It contains around 4,910 Python projects from GitHub, which were cloned in October 2019.
-
-## Code de-duplication
-Same as the paper, it is essential to de-duplicate the dataset for avoiding duplication bias when training and testing the model. Check out the `CD4Py` [tool](https://github.com/saltudelft/CD4Py) for code de-duplication.
+For Type4Py, we use the **ManyTypes4Py** dataset. You can download the latest version of the dataset [here](https://zenodo.org/record/4719447).
+Also, note that the dataset is already de-duplicated.
 
 # Installation Guide
 ## Requirements
@@ -28,6 +26,7 @@ pip install .
 # Usage Guide
 Follow the below steps to train and evaluate the Type4Py model.
 ## 1. Extraction
+**NOTE:** Skip this step if you're using the ManyTypes4Py dataset.
 ```
 $ type4py extract --c $DATA_PATH --o $OUTPUT_DIR --d $DUP_FILES --w $CORES
 ```
@@ -42,7 +41,7 @@ Description:
 $ type4py preprocess --o $OUTPUT_DIR --l $LIMIT
 ```
 Description:
-- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
+- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects. For the MT4Py dataset, use the directory in which the dataset is extracted.
 - `$LIMIT`: The number of projects to be processed. [Optional]
 
 ## 3. Vectorizing
@@ -50,15 +49,16 @@ Description:
 $ type4py vectorize --o $OUTPUT_DIR
 ```
 Description:
-- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
+- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
 
 ## 4. Learning
 ```
 $ type4py learn --o $OUTPUT_DIR --c --p $PARAM_FILE
 ```
 Description:
-- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `--c`: Trains the model for the combined prediction task. Use `--a` and `--r` for argument and return type prediction tasks, respectively.
+- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
+- `--c`: Trains the complete model. Use `type4py learn -h` to see other configurations.
+
 - `--p $PARAM_FILE`: The path to user-provided hyper-parameters for the model. See [this](https://github.com/saltudelft/type4py/blob/main/type4py/model_params.json) file as an example. [Optional]
 
 ## 5. Testing
@@ -68,7 +68,7 @@ $ type4py predict --o $OUTPUT_DIR --c
 
 Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `--c`: Tests the model for the combined prediction task. Use `--a` and `--r` for argument and return type prediction tasks, respectively. Note that this argument should be the same as the one that was used in the learning step.
+- `--c`: Predicts using the complete model. Use `type4py predict -h` to see other configurations.
 
 ## 6. Evaluating
 ```
@@ -77,7 +77,7 @@ $ type4py eval --o $OUTPUT_DIR --c --tp 10
 
 Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `--c`: Evaluates the model for the combined prediction task. Use `--a` and `--r` for argument and return type prediction tasks, respectively. Note that this argument should be the same as the one that was used in the learning step.
+- `--c`: Evaluates the complete model. Use `type4py eval -h` to see other configurations.
 - `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
 
 # VSCode Extension
