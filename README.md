@@ -4,6 +4,7 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Dataset](#dataset)
 - [Installation Guide](#installation-guide)
 - [Usage Guide](#usage-guide)
+- [VSCode Extension](#vscode-extension)
 - [Citing Type4Py](#citing-type4py)
 
 # Dataset
@@ -78,6 +79,9 @@ Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
 - `--c`: Evaluates the model for the combined prediction task. Use `--a` and `--r` for argument and return type prediction tasks, respectively. Note that this argument should be the same as the one that was used in the learning step.
 - `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
+
+# VSCode Extension
+Type4Py can be used in VSCode, which provides ML-based type auto-completion for Python files. The Type4Py's VSCode extension can be installed from the VS Marketplace [here](https://marketplace.visualstudio.com/items?itemName=saltud.type4py).
 
 # Citing Type4Py
 
