@@ -308,13 +308,13 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
         computed_embed_batches_valid = []
         computed_embed_labels_valid = []
 
-        for batch_i, (a, p, n) in enumerate(tqdm(train_valid_loader,
-                                            total=len(train_valid_loader),
-                                            desc="Type Cluster - Train set")):
-            #a_id, a_tok, a_cm, a_avl = a[0]
-            output_a = main_model_forward(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_batches_train.append(output_a.data.cpu().numpy())
-            computed_embed_labels_train.append(a[1].data.cpu().numpy())
+        # for batch_i, (a, p, n) in enumerate(tqdm(train_valid_loader,
+        #                                     total=len(train_valid_loader),
+        #                                     desc="Type Cluster - Train set")):
+        #     #a_id, a_tok, a_cm, a_avl = a[0]
+        #     output_a = main_model_forward(*(s.to(DEVICE) for s in a[0]))
+        #     computed_embed_batches_train.append(output_a.data.cpu().numpy())
+        #     computed_embed_labels_train.append(a[1].data.cpu().numpy())
         
         for batch_i, (anchor, positive_ex, negative_ex) in enumerate(tqdm(valid_data_loader,
                                                                      total=len(valid_data_loader),
@@ -330,14 +330,14 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
             computed_embed_batches_valid.append(output_a.data.cpu().numpy())
             computed_embed_labels_valid.append(anchor[1].data.cpu().numpy())
 
-        annoy_index = create_knn_index(np.vstack(computed_embed_batches_train), None, computed_embed_batches_train[0].shape[1])
-        pred_valid_embed, _ = pred_func(np.vstack(computed_embed_batches_valid), np.hstack(computed_embed_labels_train),
-                                                                annoy_index, 10)
-        acc_all, acc_ubiq, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
-                                                              ubiquitous_types, common_types, 10)
-        logger.info("E-All: %.2f | E-Ubiq: %.2f | E-Comm: %.2f | E-Rare: %.2f" % (acc_all, acc_ubiq, acc_common, acc_rare))
+        # annoy_index = create_knn_index(np.vstack(computed_embed_batches_train), None, computed_embed_batches_train[0].shape[1])
+        # pred_valid_embed, _ = pred_func(np.vstack(computed_embed_batches_valid), np.hstack(computed_embed_labels_train),
+        #                                                         annoy_index, 10)
+        # acc_all, acc_ubiq, acc_common, acc_rare, _, _ = eval_type_embed(pred_valid_embed, np.hstack(computed_embed_labels_valid),
+        #                                                       ubiquitous_types, common_types, 10)
+        # logger.info("E-All: %.2f | E-Ubiq: %.2f | E-Comm: %.2f | E-Rare: %.2f" % (acc_all, acc_ubiq, acc_common, acc_rare))
 
-    return valid_total_loss, acc_all
+    return valid_total_loss, 0.0
 
 def train(output_path: str, data_loading_funcs: dict, model_params_path=None, validation:bool=False):
     
