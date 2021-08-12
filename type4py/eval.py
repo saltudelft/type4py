@@ -168,16 +168,16 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10):
                 corr_param_rare_types += is_param_correct(p['original_type'], [i for i, _ in p['predictions'][:top_n]])
 
     tasks = 'Combined' if tasks == {'Parameter', 'Return', 'Variable'} else list(tasks)[0]
-    logger.info(f"Type4Py - {tasks} - Exact match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.2f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - ubiquitous: {corr_ubiq_types / all_ubiq_types * 100.0:.2f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - common: {corr_common_types / all_common_types * 100.0:.2f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - rare: {corr_rare_types / all_rare_types * 100.0:.2f}%")
+    logger.info(f"Type4Py - {tasks} - Exact match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.1f}%")
+    logger.info(f"Type4Py - {tasks} - Exact match - ubiquitous: {corr_ubiq_types / all_ubiq_types * 100.0:.1f}%")
+    logger.info(f"Type4Py - {tasks} - Exact match - common: {corr_common_types / all_common_types * 100.0:.1f}%")
+    logger.info(f"Type4Py - {tasks} - Exact match - rare: {corr_rare_types / all_rare_types * 100.0:.1f}%")
 
-    logger.info(f"Type4Py - {tasks} - Parametric match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types + corr_param_common_types + corr_param_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.2f}%")
-    logger.info(f"Type4Py - {tasks} - Parametric match - common: {(corr_param_common_types + corr_common_types) / all_common_types * 100.0:.2f}%")
-    logger.info(f"Type4Py - {tasks} - Parametric match - rare: {(corr_param_rare_types+corr_rare_types) / all_rare_types * 100.0:.2f}%")
+    logger.info(f"Type4Py - {tasks} - Parametric match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types + corr_param_common_types + corr_param_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.1f}%")
+    logger.info(f"Type4Py - {tasks} - Parametric match - common: {(corr_param_common_types + corr_common_types) / all_common_types * 100.0:.1f}%")
+    logger.info(f"Type4Py - {tasks} - Parametric match - rare: {(corr_param_rare_types+corr_rare_types) / all_rare_types * 100.0:.1f}%")
     
-    logger.info(f"Type4Py - Mean reciprocal rank {np.mean(mrr)*100:.2f}")
+    logger.info(f"Type4Py - Mean reciprocal rank {np.mean(mrr)*100:.1f}")
    
     return np.mean(mrr)*100
 
