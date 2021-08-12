@@ -65,13 +65,13 @@ def predict(args):
     from type4py.predict import test
     setup_logs_file(args.o, "predict")
     if args.woi:
-        test(args.o, data_loading_woi)
+        test(args.o, data_loading_woi, args.l)
     elif args.woc:
-        test(args.o, data_loading_woc)
+        test(args.o, data_loading_woc, args.l)
     elif args.wov:
-        test(args.o, data_loading_wov)
+        test(args.o, data_loading_wov, args.l)
     elif args.c:
-        test(args.o, data_loading_comb)
+        test(args.o, data_loading_comb, args.l)
 
 def eval(args):
     from type4py.eval import evaluate
@@ -132,6 +132,7 @@ def main():
     predict_parser = sub_parsers.add_parser('predict')
     predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     predict_parser.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
+    predict_parser.add_argument('--l', '--limit', required=False, type=int, help="Limiting the size of type vocabulary when building type clusters")
     predict_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     predict_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     predict_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
