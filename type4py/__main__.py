@@ -1,4 +1,5 @@
 from type4py import data_loaders
+from type4py.to_onnx import type4py_to_onnx
 from type4py.utils import setup_logs_file
 from libsa4py.cst_pipeline import Pipeline
 from libsa4py.utils import find_repos_list
@@ -158,6 +159,11 @@ def main():
     infer_parser.add_argument('--m', '--model', required=True, type=str, help="Path to the pre-trained Type4Py model")
     infer_parser.add_argument('--f', '--file', required=True, type=str, help="Path to the input source file for inference")
     infer_parser.set_defaults(func=infer)
+
+    # To ONNX format
+    onnx_parser = sub_parsers.add_parser('to_onnx')
+    onnx_parser.add_argument("--o", required=True, type=str, help="Path to processed projects")
+    onnx_parser.set_defaults(func=type4py_to_onnx)
 
     args = arg_parser.parse_args()
     args.func(args)
