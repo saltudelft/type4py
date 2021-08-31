@@ -135,6 +135,7 @@ def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None)
 
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
     logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
+    logger.info(f"Type4Py's trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     type_vocab = pd.read_csv(join(output_path, '_most_frequent_all_types.csv')).head(type_vocab_limit if type_vocab_limit is not None else -1)

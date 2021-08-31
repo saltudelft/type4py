@@ -79,13 +79,13 @@ def eval(args):
     tasks = {'c': {'Parameter', 'Return', 'Variable'}, 'p': {'Parameter'},
              'r': {'Return'}, 'v': {'Variable'}}
     if args.woi:
-        evaluate(args.o, data_loading_woi['name'], tasks[args.t] , args.tp)
+        evaluate(args.o, data_loading_woi['name'], tasks[args.t] , args.tp, args.mrr)
     elif args.woc:
-        evaluate(args.o, data_loading_woc['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_woc['name'], tasks[args.t], args.tp, args.mrr)
     elif args.wov:
-        evaluate(args.o, data_loading_wov['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_wov['name'], tasks[args.t], args.tp, args.mrr)
     else:
-        evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp, args.mrr)
 
 def infer(args):
     from type4py.infer import infer_main
@@ -142,6 +142,8 @@ def main():
     eval_parser = sub_parsers.add_parser('eval')
     eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     eval_parser.add_argument('--t', '--task', default="c", type=str, help="Prediction tasks (combined -> c |parameters -> p| return -> r| variable -> v)")
+    eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
+    eval_parser.add_argument('--mrr', default=False, action="store_true", help="Calculates MRR for all considered metrics")
     eval_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     eval_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     eval_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
@@ -149,7 +151,6 @@ def main():
     # eval_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     # eval_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
     # eval_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
-    eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
     eval_parser.set_defaults(func=eval)
 
     # Inference
