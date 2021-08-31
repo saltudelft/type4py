@@ -7,6 +7,8 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Installation Guide](#installation-guide)
 - [Usage Guide](#usage-guide)
 - [Converting Type4Py to ONNX](#converting-type4py-to-onnx)
+- [VSCode Extension](#vscode-extension)
+- [Type4Py Server](#type4py-server)
 - [Citing Type4Py](#citing-type4py)
 
 # Dataset
@@ -84,6 +86,17 @@ Description:
 
 # Converting Type4Py to ONNX
 
+# VSCode Extension
+[![vsm-version](https://img.shields.io/visual-studio-marketplace/v/saltud.type4py?style=flat&label=VS%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=saltud.type4py)
+
+Type4Py can be used in VSCode, which provides ML-based type auto-completion for Python files. The Type4Py's VSCode extension can be installed from the VS Marketplace [here](https://marketplace.visualstudio.com/items?itemName=saltud.type4py).
+
+# Type4Py Server
+![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/type4py_server_test.yaml/badge.svg)
+
+The Type4Py server is deployed on our server, which exposes a public API and powers the VSCode extension.
+However, if you would like to deploy the Type4Py server on your own machine, you can adapt the server code [here](https://github.com/saltudelft/type4py/tree/server/type4py/server).
+Also, please feel free to reach out to us for deployment, using the pre-trained Type4Py model and how to train your own model by creating an [issue](https://github.com/saltudelft/type4py/issues).
 
 # Citing Type4Py
 
