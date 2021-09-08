@@ -312,10 +312,10 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
 
     else:
         logger.info("Splitting sets randomly")
-        train_files, test_files = train_test_split(pd.DataFrame(processed_proj_fns['file'].unique(), columns=['file']),
-                                                test_size=0.2)
-        train_files, valid_files = train_test_split(pd.DataFrame(processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]['file'].unique(),
-                                                    columns=['file']), test_size=0.1)
+        uniq_files = np.unique(np.concatenate((processed_proj_fns['file'].to_numpy(), processed_proj_vars['file'].to_numpy())))
+        train_files, test_files = train_test_split(pd.DataFrame(uniq_files, columns=['file']), test_size=0.2)
+        train_files, valid_files = train_test_split(pd.DataFrame(train_files, columns=['file']), test_size=0.1)
+        train_files_vars, valid_files_vars, test_files_vars = train_files, valid_files, test_files
 
     df_train = processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]
     logger.info(f"No. of functions in train set: {df_train.shape[0]:,}")
@@ -335,108 +335,108 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     assert list(set(df_train['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
     assert list(set(df_test['file'].tolist()).intersection(set(df_valid['file'].tolist()))) == []
 
-    # Exclude variables without a type
-    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
+    # # Exclude variables without a type
+    # processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
-    logger.info(f"Making type annotations consistent")
-    # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
-    processed_proj_fns, processed_proj_vars = make_types_consistent(processed_proj_fns, processed_proj_vars)
+    # logger.info(f"Making type annotations consistent")
+    # # Makes type annotations consistent by removing `typing.`, `t.`, and `builtins` from a type.
+    # processed_proj_fns, processed_proj_vars = make_types_consistent(processed_proj_fns, processed_proj_vars)
 
-    assert any([bool(regex.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
-    assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
+    # assert any([bool(regex.match(sub_regex, str(t))) for t in processed_proj_fns['return_type']]) == False
+    # assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_fns['arg_types']]) == False
+    # assert any([bool(regex.match(sub_regex, t)) for t in processed_proj_vars['var_type']]) == False
 
-    # Filters variables with type Any or None
-    processed_proj_vars = filter_variables(processed_proj_vars)
+    # # Filters variables with type Any or None
+    # processed_proj_vars = filter_variables(processed_proj_vars)
 
-    # Filters trivial functions such as `__str__` and `__len__` 
-    processed_proj_fns = filter_functions(processed_proj_fns)
+    # # Filters trivial functions such as `__str__` and `__len__` 
+    # processed_proj_fns = filter_functions(processed_proj_fns)
     
-    # Extracts type hints for functions' arguments
-    processed_proj_fns_params = gen_argument_df(processed_proj_fns)
+    # # Extracts type hints for functions' arguments
+    # processed_proj_fns_params = gen_argument_df(processed_proj_fns)
 
-    # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
-    processed_proj_fns = filter_return_dp(processed_proj_fns)
-    processed_proj_fns = format_df(processed_proj_fns)
+    # # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
+    # processed_proj_fns = filter_return_dp(processed_proj_fns)
+    # processed_proj_fns = format_df(processed_proj_fns)
 
-    logger.info(f"Resolving type aliases")
-    # Resolves type aliasing and mappings. e.g. `[]` -> `list`
-    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns_params,
-                                                                                               processed_proj_fns,
-                                                                                               processed_proj_vars)
+    # logger.info(f"Resolving type aliases")
+    # # Resolves type aliasing and mappings. e.g. `[]` -> `list`
+    # processed_proj_fns_params, processed_proj_fns, processed_proj_vars = resolve_type_aliasing(processed_proj_fns_params,
+    #                                                                                            processed_proj_fns,
+    #                                                                                            processed_proj_vars)
 
-    assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', t)) for t in processed_proj_fns['return_type']]) == False
-    assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for t in processed_proj_fns_params['arg_type']]) == False
+    # assert any([bool(regex.match(r'^{}$|\bText\b|^\[{}\]$|^\[\]$', t)) for t in processed_proj_fns['return_type']]) == False
+    # assert any([bool(regex.match(r'^{}$|\bText\b|^\[\]$', t)) for t in processed_proj_fns_params['arg_type']]) == False
 
-    logger.info(f"Preproceessing parametric types")
-    processed_proj_fns_params, processed_proj_fns, processed_proj_vars = preprocess_parametric_types(processed_proj_fns_params,
-                                                                                                     processed_proj_fns,
-                                                                                                     processed_proj_vars)
-    # Exclude variables without a type
-    processed_proj_vars = filter_var_wo_type(processed_proj_vars)
+    # logger.info(f"Preproceessing parametric types")
+    # processed_proj_fns_params, processed_proj_fns, processed_proj_vars = preprocess_parametric_types(processed_proj_fns_params,
+    #                                                                                                  processed_proj_fns,
+    #                                                                                                  processed_proj_vars)
+    # # Exclude variables without a type
+    # processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
-    processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
-                                                                             processed_proj_vars, output_dir)
+    # processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
+    #                                                                          processed_proj_vars, output_dir)
 
-    # Exclude self from arg names and return expressions
-    processed_proj_fns['arg_names_str'] = processed_proj_fns['arg_names'].apply(lambda l: " ".join([v for v in l if v != 'self']))
-    processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([regex.sub(r"self\.?", '', v) for v in l]))
+    # # Exclude self from arg names and return expressions
+    # processed_proj_fns['arg_names_str'] = processed_proj_fns['arg_names'].apply(lambda l: " ".join([v for v in l if v != 'self']))
+    # processed_proj_fns['return_expr_str'] = processed_proj_fns['return_expr'].apply(lambda l: " ".join([regex.sub(r"self\.?", '', v) for v in l]))
 
-    # Drop all columns useless for the ML model
-    processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
-                         'return_expr'])
+    # # Drop all columns useless for the ML model
+    # processed_proj_fns = processed_proj_fns.drop(columns=['author', 'repo', 'has_type', 'arg_names', 'arg_types', 'arg_descrs', 'args_occur',
+    #                      'return_expr'])
 
-    # Visible type hints
-    if exists(join(output_dir, 'MT4Py_VTHs.csv')):
-        logger.info("Using visible type hints")
-        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
-                                                                          processed_proj_vars,
-                                                                          pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER))
-    else:
-        logger.info("Using naive available type hints")
-        df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir, AVAILABLE_TYPES_NUMBER)
-        processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
-                                                                        processed_proj_vars, df_types)
+    # # Visible type hints
+    # if exists(join(output_dir, 'MT4Py_VTHs.csv')):
+    #     logger.info("Using visible type hints")
+    #     processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+    #                                                                       processed_proj_vars,
+    #                                                                       pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER))
+    # else:
+    #     logger.info("Using naive available type hints")
+    #     df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir, AVAILABLE_TYPES_NUMBER)
+    #     processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
+    #                                                                     processed_proj_vars, df_types)
 
-    # Split parameters and returns type dataset by file into a train and test sets
-    df_params_train = processed_proj_fns_params[processed_proj_fns_params['file'].isin(train_files.to_numpy().flatten())]
-    df_params_valid = processed_proj_fns_params[processed_proj_fns_params['file'].isin(valid_files.to_numpy().flatten())]
-    df_params_test = processed_proj_fns_params[processed_proj_fns_params['file'].isin(test_files.to_numpy().flatten())]
+    # # Split parameters and returns type dataset by file into a train and test sets
+    # df_params_train = processed_proj_fns_params[processed_proj_fns_params['file'].isin(train_files.to_numpy().flatten())]
+    # df_params_valid = processed_proj_fns_params[processed_proj_fns_params['file'].isin(valid_files.to_numpy().flatten())]
+    # df_params_test = processed_proj_fns_params[processed_proj_fns_params['file'].isin(test_files.to_numpy().flatten())]
 
-    df_ret_train = processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]
-    df_ret_valid = processed_proj_fns[processed_proj_fns['file'].isin(valid_files.to_numpy().flatten())]
-    df_ret_test = processed_proj_fns[processed_proj_fns['file'].isin(test_files.to_numpy().flatten())]
+    # df_ret_train = processed_proj_fns[processed_proj_fns['file'].isin(train_files.to_numpy().flatten())]
+    # df_ret_valid = processed_proj_fns[processed_proj_fns['file'].isin(valid_files.to_numpy().flatten())]
+    # df_ret_test = processed_proj_fns[processed_proj_fns['file'].isin(test_files.to_numpy().flatten())]
 
-    df_var_train = processed_proj_vars[processed_proj_vars['file'].isin(train_files_vars.to_numpy().flatten())]
-    df_var_valid = processed_proj_vars[processed_proj_vars['file'].isin(valid_files_vars.to_numpy().flatten())]
-    df_var_test = processed_proj_vars[processed_proj_vars['file'].isin(test_files_vars.to_numpy().flatten())]
+    # df_var_train = processed_proj_vars[processed_proj_vars['file'].isin(train_files_vars.to_numpy().flatten())]
+    # df_var_valid = processed_proj_vars[processed_proj_vars['file'].isin(valid_files_vars.to_numpy().flatten())]
+    # df_var_test = processed_proj_vars[processed_proj_vars['file'].isin(test_files_vars.to_numpy().flatten())]
 
 
-    assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_test['file'].tolist()))) == []
-    assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
-    assert list(set(df_params_test['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
+    # assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_test['file'].tolist()))) == []
+    # assert list(set(df_params_train['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
+    # assert list(set(df_params_test['file'].tolist()).intersection(set(df_params_valid['file'].tolist()))) == []
 
-    assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_test['file'].tolist()))) == []
-    assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
-    assert list(set(df_ret_test['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
+    # assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_test['file'].tolist()))) == []
+    # assert list(set(df_ret_train['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
+    # assert list(set(df_ret_test['file'].tolist()).intersection(set(df_ret_valid['file'].tolist()))) == []
 
-    assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_test['file'].tolist()))) == []
-    assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
-    assert list(set(df_var_test['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
+    # assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_test['file'].tolist()))) == []
+    # assert list(set(df_var_train['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
+    # assert list(set(df_var_test['file'].tolist()).intersection(set(df_var_valid['file'].tolist()))) == []
 
-    # Store the dataframes and the label encoders
-    logger.info("Saving preprocessed functions on the disk...")
-    with open(os.path.join(output_dir, "label_encoder_all.pkl"), 'wb') as file:
-        pickle.dump(le_all, file)
+    # # Store the dataframes and the label encoders
+    # logger.info("Saving preprocessed functions on the disk...")
+    # with open(os.path.join(output_dir, "label_encoder_all.pkl"), 'wb') as file:
+    #     pickle.dump(le_all, file)
     
-    df_params_train.to_csv(os.path.join(output_dir, "_ml_param_train.csv"), index=False)
-    df_params_valid.to_csv(os.path.join(output_dir, "_ml_param_valid.csv"), index=False)
-    df_params_test.to_csv(os.path.join(output_dir, "_ml_param_test.csv"), index=False)
+    # df_params_train.to_csv(os.path.join(output_dir, "_ml_param_train.csv"), index=False)
+    # df_params_valid.to_csv(os.path.join(output_dir, "_ml_param_valid.csv"), index=False)
+    # df_params_test.to_csv(os.path.join(output_dir, "_ml_param_test.csv"), index=False)
 
-    df_ret_train.to_csv(os.path.join(output_dir, "_ml_ret_train.csv"), index=False)
-    df_ret_valid.to_csv(os.path.join(output_dir, "_ml_ret_valid.csv"), index=False)
-    df_ret_test.to_csv(os.path.join(output_dir, "_ml_ret_test.csv"), index=False)
+    # df_ret_train.to_csv(os.path.join(output_dir, "_ml_ret_train.csv"), index=False)
+    # df_ret_valid.to_csv(os.path.join(output_dir, "_ml_ret_valid.csv"), index=False)
+    # df_ret_test.to_csv(os.path.join(output_dir, "_ml_ret_test.csv"), index=False)
 
-    df_var_train.to_csv(os.path.join(output_dir, "_ml_var_train.csv"), index=False)
-    df_var_valid.to_csv(os.path.join(output_dir, "_ml_var_valid.csv"), index=False)
-    df_var_test.to_csv(os.path.join(output_dir, "_ml_var_test.csv"), index=False)
+    # df_var_train.to_csv(os.path.join(output_dir, "_ml_var_train.csv"), index=False)
+    # df_var_valid.to_csv(os.path.join(output_dir, "_ml_var_valid.csv"), index=False)
+    # df_var_test.to_csv(os.path.join(output_dir, "_ml_var_test.csv"), index=False)
