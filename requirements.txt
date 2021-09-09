@@ -6,7 +6,7 @@ asttokens
 astor
 docstring-parser
 scikit-learn
-gensim
+gensim>=4.0.0
 annoy>=1.17.0
 torch
 dpu_utils
