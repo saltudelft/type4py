@@ -17,7 +17,7 @@ class TestPredictEndpoint(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def __set_env(self, pytestconfig):
         if pytestconfig.getoption("env") == 'dev':
-            self.TYPE4PY_PRED_EP = "http://localhost:5001/api/predict?tc=0"
+            self.TYPE4PY_PRED_EP = "https://dev.type4py.com/api/predict?tc=0"
         else:
             self.TYPE4PY_PRED_EP = "https://type4py.com/api/predict?tc=0"
 
