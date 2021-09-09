@@ -299,10 +299,6 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
     processed_proj_fns = pd.read_csv(os.path.join(output_dir, "all_fns.csv"), low_memory=False)
     processed_proj_vars = pd.read_csv(os.path.join(output_dir, "all_vars.csv"), low_memory=False)
 
-    logger.info("Removing fns & vars wo/ a pre-defined set")
-    processed_proj_fns = processed_proj_fns[processed_proj_fns['set'].notnull()]
-    processed_proj_vars = processed_proj_vars[processed_proj_vars['set'].notnull()]
-
     # Split the processed files into train, validation and test sets
     if all(processed_proj_fns['set'].isin(['train', 'valid', 'test'])) and \
        all(processed_proj_vars['set'].isin(['train', 'valid', 'test'])):
