@@ -15,6 +15,10 @@ This repository contains the implementation of Type4Py and instructions for re-p
 For Type4Py, we use the **ManyTypes4Py** dataset. You can download the latest version of the dataset [here](https://zenodo.org/record/4719447).
 Also, note that the dataset is already de-duplicated.
 
+## Code De-deduplication
+If you want to use your own dataset, 
+it is essential to de-duplicate the dataset by using a tool like [CD4Py](https://github.com/saltudelft/CD4Py).
+
 # Installation Guide
 ## Requirements
 - Linux-based OS
@@ -37,7 +41,7 @@ $ type4py extract --c $DATA_PATH --o $OUTPUT_DIR --d $DUP_FILES --w $CORES
 Description:
 - `$DATA_PATH`: The path to the Python corpus or dataset.
 - `$OUTPUT_DIR`: The path to store processed projects.
-- `$DUP_FILES`: The path to the duplicate files. [Optional]
+- `$DUP_FILES`: The path to the duplicate files, i.e., the `*.jsonl.gz` file produced by CD4Py. [Optional]
 - `$CORES`: Number of CPU cores to use for processing projects.
 
 ## 2. Preprocessing
