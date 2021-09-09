@@ -1,7 +1,7 @@
 from gensim.models import Word2Vec
 from time import time
 from tqdm import tqdm
-from type4py import logger, AVAILABLE_TYPES_NUMBER
+from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
 from type4py.utils import mk_dir_not_exist
 import os
 import multiprocessing
@@ -311,12 +311,12 @@ def vectorize_args_ret(output_path: str):
     mk_dir_not_exist(os.path.join(output_path, "vectors", "valid"))
     mk_dir_not_exist(os.path.join(output_path, "vectors", "test"))
 
-    tks_seq_len = (7, 3)
+    #tks_seq_len = (7, 3)
     vts_seq_len = (15, 5)
     # Vectorize functions' arguments
     id_trans_func_param = lambda row: IdentifierSequence(w2v_token_model, row.arg_name, row.other_args,
                                                          row.func_name, None)
-    token_trans_func_param = lambda row: TokenSequence(w2v_token_model, tks_seq_len[0], tks_seq_len[1],
+    token_trans_func_param = lambda row: TokenSequence(w2v_token_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
                                                        row.arg_occur, None, None)
 
     # Identifiers
@@ -345,7 +345,7 @@ def vectorize_args_ret(output_path: str):
 
     # Vectorize functions' return types
     id_trans_func_ret = lambda row: IdentifierSequence(w2v_token_model, None, row.arg_names_str, row.name, None)
-    token_trans_func_ret = lambda row: TokenSequence(w2v_token_model, tks_seq_len[0], tks_seq_len[1], None,
+    token_trans_func_ret = lambda row: TokenSequence(w2v_token_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1], None,
                                                      row.return_expr_str, None)
 
     # Identifiers
@@ -374,7 +374,7 @@ def vectorize_args_ret(output_path: str):
 
     # Vectorize variables types
     id_trans_func_var = lambda row: IdentifierSequence(w2v_token_model, None, None, None, row.var_name)
-    token_trans_func_var = lambda row: TokenSequence(w2v_token_model, tks_seq_len[0], tks_seq_len[1], None,
+    token_trans_func_var = lambda row: TokenSequence(w2v_token_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1], None,
                                                      None, row.var_occur)
 
     # Identifiers

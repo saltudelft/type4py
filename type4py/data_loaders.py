@@ -16,6 +16,9 @@ def load_flat_labels_tensors(filename):
 
     return torch.from_numpy(np.load(filename)).long()
 
+def to_numpy(tensor):
+    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
 # Combined data
 def load_combined_train_data(output_path: str):
     return torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'train', 'identifiers_param_train_datapoints_x.npy')),

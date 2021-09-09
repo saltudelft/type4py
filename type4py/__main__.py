@@ -1,4 +1,5 @@
 from type4py import data_loaders
+from type4py.to_onnx import type4py_to_onnx
 from type4py.utils import setup_logs_file
 from libsa4py.cst_pipeline import Pipeline
 from libsa4py.utils import find_repos_list
@@ -65,13 +66,13 @@ def predict(args):
     from type4py.predict import test
     setup_logs_file(args.o, "predict")
     if args.woi:
-        test(args.o, data_loading_woi)
+        test(args.o, data_loading_woi, args.l)
     elif args.woc:
-        test(args.o, data_loading_woc)
+        test(args.o, data_loading_woc, args.l)
     elif args.wov:
-        test(args.o, data_loading_wov)
+        test(args.o, data_loading_wov, args.l)
     elif args.c:
-        test(args.o, data_loading_comb)
+        test(args.o, data_loading_comb, args.l)
 
 def eval(args):
     from type4py.eval import evaluate
@@ -79,13 +80,19 @@ def eval(args):
     tasks = {'c': {'Parameter', 'Return', 'Variable'}, 'p': {'Parameter'},
              'r': {'Return'}, 'v': {'Variable'}}
     if args.woi:
-        evaluate(args.o, data_loading_woi['name'], tasks[args.t] , args.tp)
+        evaluate(args.o, data_loading_woi['name'], tasks[args.t] , args.tp, args.mrr)
     elif args.woc:
-        evaluate(args.o, data_loading_woc['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_woc['name'], tasks[args.t], args.tp, args.mrr)
     elif args.wov:
-        evaluate(args.o, data_loading_wov['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_wov['name'], tasks[args.t], args.tp, args.mrr)
     else:
-        evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp)
+        evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp, args.mrr)
+
+def infer(args):
+    from type4py.infer import infer_main
+    setup_logs_file(args.m, 'infer')
+    infer_main(args.m, args.f)
+
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -126,6 +133,7 @@ def main():
     predict_parser = sub_parsers.add_parser('predict')
     predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     predict_parser.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
+    predict_parser.add_argument('--l', '--limit', required=False, type=int, help="Limiting the size of type vocabulary when building type clusters")
     predict_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     predict_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     predict_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
@@ -135,6 +143,8 @@ def main():
     eval_parser = sub_parsers.add_parser('eval')
     eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     eval_parser.add_argument('--t', '--task', default="c", type=str, help="Prediction tasks (combined -> c |parameters -> p| return -> r| variable -> v)")
+    eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
+    eval_parser.add_argument('--mrr', default=False, action="store_true", help="Calculates MRR for all considered metrics")
     eval_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     eval_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     eval_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
@@ -142,8 +152,18 @@ def main():
     # eval_parser.add_argument('--a', '--argument', default=False, action="store_true", help="argument prediction task")
     # eval_parser.add_argument('--r', '--return', default=False, action="store_true", help="return prediction task")
     # eval_parser.add_argument('--v', '--variable', default=False, action="store_true", help="variable prediction task")
-    eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")
     eval_parser.set_defaults(func=eval)
+
+    # Inference
+    infer_parser = sub_parsers.add_parser('infer')
+    infer_parser.add_argument('--m', '--model', required=True, type=str, help="Path to the pre-trained Type4Py model")
+    infer_parser.add_argument('--f', '--file', required=True, type=str, help="Path to the input source file for inference")
+    infer_parser.set_defaults(func=infer)
+
+    # To ONNX format
+    onnx_parser = sub_parsers.add_parser('to_onnx')
+    onnx_parser.add_argument("--o", required=True, type=str, help="Path to processed projects")
+    onnx_parser.set_defaults(func=type4py_to_onnx)
 
     args = arg_parser.parse_args()
     args.func(args)

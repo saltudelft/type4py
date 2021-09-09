@@ -1,9 +1,12 @@
 # Type4Py: Deep Similarity Learning-Based Type Inference for Python
+![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/type4py_server_test.yaml/badge.svg)
+
 This repository contains the implementation of Type4Py and instructions for re-producing the results of the paper.
 
 - [Dataset](#dataset)
 - [Installation Guide](#installation-guide)
 - [Usage Guide](#usage-guide)
+- [Converting Type4Py to ONNX](#converting-type4py-to-onnx)
 - [VSCode Extension](#vscode-extension)
 - [Type4Py Server](#type4py-server)
 - [Citing Type4Py](#citing-type4py)
@@ -80,6 +83,14 @@ Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
 - `--c`: Evaluates the complete model. Use `type4py eval -h` to see other configurations.
 - `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
+
+# Converting Type4Py to ONNX
+To convert the pre-trained Type4Py model to the [ONNX](https://onnxruntime.ai/) format, use the following command:
+```
+$ type4py to_onnx --o $OUTPUT_DIR
+```
+Description:
+- `$OUTPUT_DIR`: The path that was used in the [usage](#usage-guide) section to store processed projects and the model.
 
 # VSCode Extension
 [![vsm-version](https://img.shields.io/visual-studio-marketplace/v/saltud.type4py?style=flat&label=VS%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=saltud.type4py)

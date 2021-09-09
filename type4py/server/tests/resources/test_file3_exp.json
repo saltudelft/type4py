@@ -1,0 +1,276 @@
+{
+    "classes": [],
+    "funcs": [
+      {
+        "docstring": {
+          "func": null,
+          "long_descr": null,
+          "ret": null
+        },
+        "fn_lc": [
+          [
+            8,
+            0
+          ],
+          [
+            12,
+            50
+          ]
+        ],
+        "fn_var_ln": {
+          "found": [
+            [
+              9,
+              4
+            ],
+            [
+              9,
+              9
+            ]
+          ],
+          "jacoco_index": [
+            [
+              12,
+              12
+            ],
+            [
+              12,
+              24
+            ]
+          ]
+        },
+        "fn_var_occur": {
+          "found": [
+            [
+              "found",
+              "False"
+            ]
+          ],
+          "jacoco_index": [
+            [
+              "jacoco_index",
+              "builtins",
+              "int",
+              "index"
+            ]
+          ]
+        },
+        "name": "find_plugin",
+        "params": {
+          "content_list": "List[str]",
+          "plugin_name": "builtins.str"
+        },
+        "params_descr": {
+          "content_list": "",
+          "plugin_name": ""
+        },
+        "params_occur": {
+          "content_list": [],
+          "plugin_name": []
+        },
+        "params_p": {
+          "args": [],
+          "content_list": [
+            [
+              "str",
+              0.6079915442136982
+            ],
+            [
+              "List[str]",
+              0.0983442285967507
+            ],
+            [
+              "Callable[[], Any]",
+              0.09313038104603626
+            ],
+            [
+              "List[List[str]]",
+              0.09172324935034999
+            ]
+          ],
+          "kwargs": [],
+          "plugin_name": [
+            [
+              "str",
+              0.6079915442136982
+            ],
+            [
+              "List[str]",
+              0.0983442285967507
+            ],
+            [
+              "Callable[[], Any]",
+              0.09313038104603626
+            ],
+            [
+              "List[List[str]]",
+              0.09172324935034999
+            ]
+          ]
+        },
+        "q_name": "find_plugin",
+        "ret_exprs": [],
+        "ret_type": "",
+        "variables": {
+          "found": "",
+          "jacoco_index": "builtins.int"
+        },
+        "variables_p": {
+          "found": [
+            [
+              "Dict[str, Dict[str, Any]]",
+              0.3333333332989006
+            ],
+            [
+              "dict",
+              0.3333333332989006
+            ],
+            [
+              "str",
+              0.3333333332989006
+            ],
+            [
+              "bytes",
+              2.68210642083439e-11
+            ]
+          ],
+          "jacoco_index": [
+            [
+              "int",
+              0.9999999999999999
+            ]
+          ]
+        }
+      }
+    ],
+    "imports": [
+      "json",
+      "pprint",
+      "pprint"
+    ],
+    "mod_var_ln": {
+      "contents": [
+        [
+          15,
+          0
+        ],
+        [
+          15,
+          8
+        ]
+      ],
+      "f": [
+        [
+          14,
+          0
+        ],
+        [
+          14,
+          1
+        ]
+      ],
+      "jacoco_index": [
+        [
+          19,
+          8
+        ],
+        [
+          19,
+          20
+        ]
+      ]
+    },
+    "mod_var_occur": {
+      "contents": [
+        [
+          "enumerate",
+          "contents"
+        ],
+        [
+          "contents",
+          "insert",
+          "jacoco_index"
+        ],
+        [
+          "pprint",
+          "contents"
+        ]
+      ],
+      "f": [
+        [
+          "contents",
+          "f",
+          "readlines"
+        ],
+        [
+          "f",
+          "close"
+        ]
+      ],
+      "jacoco_index": [
+        [
+          "contents",
+          "insert",
+          "jacoco_index"
+        ]
+      ]
+    },
+    "no_types_annot": {
+      "D": 3,
+      "I": 0,
+      "U": 5
+    },
+    "set": null,
+    "tc": [
+      false,
+      null
+    ],
+    "type_annot_cove": 0.38,
+    "typed_seq": "",
+    "untyped_seq": "",
+    "variables": {
+      "contents": "",
+      "f": "",
+      "jacoco_index": ""
+    },
+    "variables_p": {
+      "contents": [
+        [
+          "str",
+          0.28772861940904815
+        ],
+        [
+          "list",
+          0.12932499516711135
+        ],
+        [
+          "List[Tuple[str, str]]",
+          0.12397157864287016
+        ],
+        [
+          "bytes",
+          0.1102003194378298
+        ]
+      ],
+      "f": [
+        [
+          "str",
+          0.3706163327874591
+        ]
+      ],
+      "jacoco_index": [
+        [
+          "str",
+          0.7576538450907581
+        ],
+        [
+          "List[Callable[..., Any]]",
+          0.08078205163641396
+        ],
+        [
+          "Type[memoryview]",
+          0.08078205163641396
+        ]
+      ]
+    }
+  }

@@ -2,6 +2,7 @@ from type4py import logger
 from typing import List
 from tqdm import tqdm
 from joblib import Parallel
+from tempfile import NamedTemporaryFile
 import time
 import logging
 import os
@@ -94,3 +95,10 @@ def setup_logs_file(log_dir: str, module_name: str):
     logger_fh.setLevel(logger.level)
     logger_fh.setFormatter(logging.Formatter(fmt='[%(asctime)s][%(name)s][%(levelname)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S"))
     logger.addHandler(logger_fh)
+
+def create_tmp_file(suffix: str):
+    """
+    It creates a temporary file.
+    NOTE: the temp file should be deleted manaully after creation.
+    """
+    return NamedTemporaryFile(mode="w", delete=False, suffix=suffix)

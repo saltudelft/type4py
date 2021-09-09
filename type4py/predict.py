@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from annoy import AnnoyIndex
 import numpy as np
+import pandas as pd
 import pickle
 import re
 import torch
@@ -70,7 +71,7 @@ def predict_type_embed_task(types_embed_array: np.array, types_embed_labels: np.
     return pred_types
 
 
-def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader: DataLoader):
+def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader: DataLoader, type_vocab: set):
 
     computed_embed_labels = []
     annoy_idx = AnnoyIndex(model.output_size, 'euclidean')
@@ -80,22 +81,28 @@ def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader:
         model.eval()
         with torch.no_grad():
             output_a = model(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_labels.append(a[1].data.cpu().numpy())
-            for v in output_a.data.cpu().numpy():
-                annoy_idx.add_item(curr_idx, v)
-                curr_idx += 1
+            lables = a[1].data.cpu().numpy()
+            #computed_embed_labels.append(lables)
+            for i, v in enumerate(output_a.data.cpu().numpy()):
+                if lables[i] in type_vocab:
+                    annoy_idx.add_item(curr_idx, v)
+                    computed_embed_labels.append(lables[i])
+                    curr_idx += 1
 
     for _, (a, _, _) in enumerate(tqdm(valid_data_loader, total=len(valid_data_loader), desc="Computing Type Clusters - Valid set")):
         model.eval()
         with torch.no_grad():
             output_a = model(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_labels.append(a[1].data.cpu().numpy())
-            for v in output_a.data.cpu().numpy():
-                annoy_idx.add_item(curr_idx, v)
-                curr_idx += 1
+            lables = a[1].data.cpu().numpy()
+            #computed_embed_labels.append(a[1].data.cpu().numpy())
+            for i, v in enumerate(output_a.data.cpu().numpy()):
+                if lables[i] in type_vocab:
+                    annoy_idx.add_item(curr_idx, v)
+                    computed_embed_labels.append(lables[i])
+                    curr_idx += 1
 
     annoy_idx.build(KNN_TREE_SIZE)
-    return annoy_idx, np.hstack(computed_embed_labels)
+    return annoy_idx, np.array(computed_embed_labels) #np.hstack(computed_embed_labels)
 
 def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, np.array]:
     """
@@ -114,7 +121,7 @@ def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, 
 
     return np.vstack(computed_embed_batches), np.hstack(computed_embed_labels)
 
-def test(output_path: str, data_loading_funcs: dict):
+def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None):
 
     logger.info(f"Testing Type4Py model")
     logger.info(f"**********************************************************************")
@@ -128,8 +135,13 @@ def test(output_path: str, data_loading_funcs: dict):
 
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
     logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
+    logger.info(f"Type4Py's trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
-    annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader)
+    le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
+    type_vocab = pd.read_csv(join(output_path, '_most_frequent_all_types.csv')).head(type_vocab_limit if type_vocab_limit is not None else -1)
+    type_vocab = set(le_all.transform(type_vocab['type'].values))
+
+    annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader, type_vocab)
     logger.info("Created type clusters")
 
     annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster"))
@@ -142,7 +154,7 @@ def test(output_path: str, data_loading_funcs: dict):
     
     # Perform KNN search and predict
     logger.info("Performing KNN search")
-    le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
+    
     train_valid_labels = le_all.inverse_transform(embed_labels)
     embed_test_labels = le_all.inverse_transform(embed_test_labels)
     pred_types = predict_type_embed_task(test_type_embed, embed_test_labels,

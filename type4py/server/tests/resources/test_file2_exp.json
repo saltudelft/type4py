@@ -1,0 +1,1923 @@
+{
+  "classes": [
+    {
+      "cls_var_ln": {
+        "global_root": [
+          [
+            70,
+            4
+          ],
+          [
+            70,
+            15
+          ]
+        ],
+        "local_root": [
+          [
+            71,
+            4
+          ],
+          [
+            71,
+            14
+          ]
+        ]
+      },
+      "cls_var_occur": {
+        "global_root": [],
+        "local_root": []
+      },
+      "funcs": [],
+      "name": "FoundRoot",
+      "q_name": "FoundRoot",
+      "variables": {
+        "global_root": "pathlib.Path",
+        "local_root": "typing.Optional[pathlib.Path]"
+      },
+      "variables_p": {
+        "global_root": [
+          [
+            "str",
+            0.9999999999999999
+          ]
+        ],
+        "local_root": [
+          [
+            "str",
+            0.9999999999999999
+          ]
+        ]
+      }
+    }
+  ],
+  "funcs": [
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          20,
+          0
+        ],
+        [
+          29,
+          23
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "get_relative_local_root",
+      "params": {
+        "global_root": "pathlib.Path",
+        "local_root": "Dict[pathlib.Path, PackageSummary]"
+      },
+      "params_descr": {
+        "global_root": "",
+        "local_root": ""
+      },
+      "params_occur": {
+        "global_root": [
+          [
+            "str",
+            "local_root",
+            "relative_to",
+            "global_root"
+          ]
+        ],
+        "local_root": [
+          [
+            "local_root",
+            "None"
+          ],
+          [
+            "str",
+            "local_root",
+            "relative_to",
+            "global_root"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "global_root": [
+          [
+            "pathlib.Path",
+            0.3922261722488238
+          ],
+          [
+            "str",
+            0.09343912332944353
+          ]
+        ],
+        "kwargs": [],
+        "local_root": [
+          [
+            "Dict[pathlib.Path, PackageSummary]",
+            0.19568655727993778
+          ],
+          [
+            "Optional[pathlib.Path]",
+            0.1216619471266795
+          ],
+          [
+            "Optional[Mapping[str, Any]]",
+            0.09833544618933869
+          ],
+          [
+            "str",
+            0.09833544618933869
+          ],
+          [
+            "bool",
+            0.09833544618933869
+          ],
+          [
+            "Optional[IO[bytes]]",
+            0.09636783559246816
+          ],
+          [
+            "Tuple[str]",
+            0.09560720225820257
+          ]
+        ]
+      },
+      "q_name": "get_relative_local_root",
+      "ret_exprs": [
+        "return None",
+        "return str(local_root.relative_to(global_root))",
+        "return None"
+      ],
+      "ret_type": "typing.Optional[builtins.str]",
+      "ret_type_p": [
+        [
+          "str",
+          0.2235111865067853
+        ],
+        [
+          "Optional[str]",
+          0.19584815517169712
+        ],
+        [
+          "int",
+          0.09340058761514192
+        ],
+        [
+          "Optional[Dict[str, str]]",
+          0.09159872967137193
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          32,
+          0
+        ],
+        [
+          44,
+          15
+        ]
+      ],
+      "fn_var_ln": {
+        "candidate_path": [
+          [
+            36,
+            8
+          ],
+          [
+            36,
+            22
+          ]
+        ],
+        "resolved_base": [
+          [
+            33,
+            4
+          ],
+          [
+            33,
+            17
+          ]
+        ]
+      },
+      "fn_var_occur": {
+        "candidate_path": [
+          [
+            "candidate_path",
+            "candidate_directory",
+            "target"
+          ],
+          [
+            "predicate",
+            "candidate_path"
+          ]
+        ],
+        "resolved_base": [
+          [
+            "resolved_base",
+            "builtins",
+            "str",
+            "base",
+            "resolve",
+            "strict",
+            "False"
+          ],
+          [
+            "itertools",
+            "chain",
+            "resolved_base",
+            "resolved_base",
+            "parents"
+          ]
+        ]
+      },
+      "name": "_find_parent_directory_containing",
+      "params": {
+        "base": "pathlib.Path",
+        "predicate": "",
+        "target": "builtins.str"
+      },
+      "params_descr": {
+        "base": "",
+        "predicate": "",
+        "target": ""
+      },
+      "params_occur": {
+        "base": [
+          [
+            "resolved_base",
+            "builtins",
+            "str",
+            "base",
+            "resolve",
+            "strict",
+            "False"
+          ]
+        ],
+        "predicate": [
+          [
+            "predicate",
+            "candidate_path"
+          ]
+        ],
+        "target": [
+          [
+            "candidate_path",
+            "candidate_directory",
+            "target"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "base": [
+          [
+            "str",
+            0.6908979465690169
+          ],
+          [
+            "pathlib.Path",
+            0.11956626174199034
+          ]
+        ],
+        "kwargs": [],
+        "predicate": [
+          [
+            "str",
+            0.2886098972741941
+          ],
+          [
+            "List[str]",
+            0.19471471689591632
+          ],
+          [
+            "int",
+            0.1189404320799804
+          ],
+          [
+            "tuple",
+            0.10581883359289773
+          ]
+        ],
+        "target": [
+          [
+            "str",
+            0.7941651719684689
+          ],
+          [
+            "BinaryIO",
+            0.11319062863795967
+          ],
+          [
+            "Optional[List]",
+            0.09264419939357121
+          ]
+        ]
+      },
+      "q_name": "_find_parent_directory_containing",
+      "ret_exprs": [
+        "return candidate_directory",
+        "return None"
+      ],
+      "ret_type": "typing.Optional[builtins.str]",
+      "ret_type_p": [
+        [
+          "Optional[str]",
+          0.2136509444927253
+        ],
+        [
+          "Sequence[str]",
+          0.181033563284172
+        ],
+        [
+          "Optional[Callable[[None], bool]]",
+          0.12502691247877407
+        ],
+        [
+          "Optional[Dict[str, Any]]",
+          0.09299559351552526
+        ],
+        [
+          "str",
+          0.09198605249457062
+        ],
+        [
+          "bool",
+          0.090516781642086
+        ]
+      ],
+      "variables": {
+        "candidate_path": "",
+        "resolved_base": "builtins.str"
+      },
+      "variables_p": {
+        "candidate_path": [
+          [
+            "str",
+            0.5953898363684124
+          ],
+          [
+            "pathlib.Path",
+            0.40461016363158747
+          ]
+        ],
+        "resolved_base": [
+          [
+            "str",
+            1.0
+          ]
+        ]
+      }
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          54,
+          4
+        ],
+        [
+          55,
+          29
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "is_file",
+      "params": {
+        "path": "pathlib.Path"
+      },
+      "params_descr": {
+        "path": ""
+      },
+      "params_occur": {
+        "path": [
+          [
+            "path",
+            "is_file"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "kwargs": [],
+        "path": [
+          [
+            "pathlib.Path",
+            0.7602398863086898
+          ],
+          [
+            "str",
+            0.14936721895639085
+          ],
+          [
+            "norfs.fs.base.Path",
+            0.04638704678640392
+          ],
+          [
+            "int",
+            0.04400584794851543
+          ]
+        ]
+      },
+      "q_name": "find_parent_directory_containing_file.<locals>.is_file",
+      "ret_exprs": [
+        "return path.is_file()"
+      ],
+      "ret_type": "builtins.bool",
+      "ret_type_p": [
+        [
+          "List[str]",
+          0.30446992096157605
+        ],
+        [
+          "TextIO",
+          0.20297994730771737
+        ],
+        [
+          "bool",
+          0.10898350659824617
+        ],
+        [
+          "Optional[int]",
+          0.10148997365385869
+        ],
+        [
+          "Path",
+          0.09684264951181758
+        ],
+        [
+          "str",
+          0.09053754734133836
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": "Walk directories upwards from `base`, until the root directory is",
+        "long_descr": "reached. At each step, check if the `target` file exist, and return\nit if found. Return None if the search is unsuccessful.",
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          47,
+          0
+        ],
+        [
+          57,
+          77
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "find_parent_directory_containing_file",
+      "params": {
+        "base": "builtins.str",
+        "target": "builtins.str"
+      },
+      "params_descr": {
+        "base": "",
+        "target": ""
+      },
+      "params_occur": {
+        "base": [
+          [
+            "_find_parent_directory_containing",
+            "base",
+            "target",
+            "predicate",
+            "is_file"
+          ]
+        ],
+        "target": [
+          [
+            "_find_parent_directory_containing",
+            "base",
+            "target",
+            "predicate",
+            "is_file"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "base": [
+          [
+            "str",
+            0.38075431987465114
+          ],
+          [
+            "bool",
+            0.18794650654896414
+          ],
+          [
+            "pathlib.Path",
+            0.12044110734060882
+          ],
+          [
+            "List[str]",
+            0.12044110734060882
+          ],
+          [
+            "Optional[str]",
+            0.09887683730472888
+          ]
+        ],
+        "kwargs": [],
+        "target": [
+          [
+            "str",
+            0.38075431987465114
+          ],
+          [
+            "bool",
+            0.18794650654896414
+          ],
+          [
+            "pathlib.Path",
+            0.12044110734060882
+          ],
+          [
+            "List[str]",
+            0.12044110734060882
+          ],
+          [
+            "Optional[str]",
+            0.09887683730472888
+          ]
+        ]
+      },
+      "q_name": "find_parent_directory_containing_file",
+      "ret_exprs": [
+        "return _find_parent_directory_containing(base, target, predicate=is_file)"
+      ],
+      "ret_type": "typing.Optional[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "str",
+          0.6131725250460764
+        ],
+        [
+          "list",
+          0.10637823893727034
+        ],
+        [
+          "Tuple[Literal, Literal]",
+          0.09979896563061091
+        ],
+        [
+          "Generator[pathlib.Path, None, None]",
+          0.09319100648652735
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": "Pyre always runs from the directory containing the nearest .pyre_configuration,",
+        "long_descr": "if one exists.",
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          60,
+          0
+        ],
+        [
+          63,
+          74
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "find_global_root",
+      "params": {
+        "base": "pathlib.Path"
+      },
+      "params_descr": {
+        "base": ""
+      },
+      "params_occur": {
+        "base": [
+          [
+            "find_parent_directory_containing_file",
+            "base",
+            "CONFIGURATION_FILE"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "base": [
+          [
+            "str",
+            0.24446504869968155
+          ],
+          [
+            "Union[str, bytes]",
+            0.1055667581380764
+          ],
+          [
+            "bool",
+            0.0827190954868854
+          ],
+          [
+            "path.Path",
+            0.07803834384910584
+          ]
+        ],
+        "kwargs": []
+      },
+      "q_name": "find_global_root",
+      "ret_exprs": [
+        "return find_parent_directory_containing_file(base, CONFIGURATION_FILE)"
+      ],
+      "ret_type": "typing.Optional[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "bool",
+          0.09501589151651559
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": "Walk directories upwards from `base` and try to find both the global and local",
+        "long_descr": "pyre configurations.\nReturn `None` if no global configuration is found.\nIf a global configuration exists but no local configuration is found below it,\nreturn the path to the global configuration.\nIf both global and local exist, return them as a pair.",
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          74,
+          0
+        ],
+        [
+          97,
+          61
+        ]
+      ],
+      "fn_var_ln": {
+        "found_global_root": [
+          [
+            83,
+            4
+          ],
+          [
+            83,
+            21
+          ]
+        ],
+        "found_local_root": [
+          [
+            87,
+            4
+          ],
+          [
+            87,
+            20
+          ]
+        ]
+      },
+      "fn_var_occur": {
+        "found_global_root": [
+          [
+            "found_global_root",
+            "find_parent_directory_containing_file",
+            "base",
+            "CONFIGURATION_FILE"
+          ],
+          [
+            "found_global_root",
+            "None"
+          ],
+          [
+            "FoundRoot",
+            "found_global_root"
+          ],
+          [
+            "found_local_root",
+            "found_global_root",
+            "parents"
+          ],
+          [
+            "FoundRoot",
+            "found_global_root"
+          ],
+          [
+            "FoundRoot",
+            "found_global_root",
+            "found_local_root"
+          ]
+        ],
+        "found_local_root": [
+          [
+            "found_local_root",
+            "find_parent_directory_containing_file",
+            "base",
+            "LOCAL_CONFIGURATION_FILE"
+          ],
+          [
+            "found_local_root",
+            "None"
+          ],
+          [
+            "found_local_root",
+            "found_global_root",
+            "parents"
+          ],
+          [
+            "FoundRoot",
+            "found_global_root",
+            "found_local_root"
+          ]
+        ]
+      },
+      "name": "find_global_and_local_root",
+      "params": {
+        "base": "pathlib.Path"
+      },
+      "params_descr": {
+        "base": ""
+      },
+      "params_occur": {
+        "base": [
+          [
+            "found_global_root",
+            "find_parent_directory_containing_file",
+            "base",
+            "CONFIGURATION_FILE"
+          ],
+          [
+            "found_local_root",
+            "find_parent_directory_containing_file",
+            "base",
+            "LOCAL_CONFIGURATION_FILE"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "base": [
+          [
+            "str",
+            0.5923634338477153
+          ],
+          [
+            "pathlib.Path",
+            0.22515366517175295
+          ],
+          [
+            "Union[pathlib.Path, str]",
+            0.10155911408116697
+          ]
+        ],
+        "kwargs": []
+      },
+      "q_name": "find_global_and_local_root",
+      "ret_exprs": [
+        "return None",
+        "return FoundRoot(found_global_root)",
+        "return FoundRoot(found_global_root)",
+        "return FoundRoot(found_global_root, found_local_root)"
+      ],
+      "ret_type": "typing.Optional[FoundRoot]",
+      "ret_type_p": [
+        [
+          "str",
+          0.4163808774634563
+        ],
+        [
+          "Optional[List[Any]]",
+          0.18862216524462133
+        ],
+        [
+          "Optional[str]",
+          0.18862216524462133
+        ],
+        [
+          "List[Dict[str, Any]]",
+          0.1120637094249903
+        ],
+        [
+          "Optional[Dict[str, Any]]",
+          0.09431108262231067
+        ]
+      ],
+      "variables": {
+        "found_global_root": "",
+        "found_local_root": ""
+      },
+      "variables_p": {
+        "found_global_root": [
+          [
+            "str",
+            0.6192815751316605
+          ],
+          [
+            "Dict[str, str]",
+            0.09918805603425132
+          ],
+          [
+            "pathlib.Path",
+            0.09768420619528954
+          ]
+        ],
+        "found_local_root": [
+          [
+            "pathlib.Path",
+            0.4846013002142221
+          ],
+          [
+            "str",
+            0.30868528291908215
+          ],
+          [
+            "Optional[str]",
+            0.09458801001261342
+          ]
+        ]
+      }
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          109,
+          4
+        ],
+        [
+          110,
+          28
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "is_directory",
+      "params": {
+        "path": "pathlib.Path"
+      },
+      "params_descr": {
+        "path": ""
+      },
+      "params_occur": {
+        "path": [
+          [
+            "path",
+            "is_dir"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "kwargs": [],
+        "path": [
+          [
+            "str",
+            0.999999996564162
+          ],
+          [
+            "pathlib.Path",
+            1.7179189835002617e-09
+          ],
+          [
+            "pathlib2.Path",
+            1.1452793223335078e-09
+          ]
+        ]
+      },
+      "q_name": "find_parent_directory_containing_directory.<locals>.is_directory",
+      "ret_exprs": [
+        "return path.is_dir()"
+      ],
+      "ret_type": "builtins.bool",
+      "ret_type_p": [
+        [
+          "bool",
+          0.32056789793741364
+        ],
+        [
+          "Optional[str]",
+          0.19612846752706942
+        ],
+        [
+          "str",
+          0.19220740740646064
+        ],
+        [
+          "float",
+          0.09593477628347909
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": "Walk directories upwards from base, until the root directory is",
+        "long_descr": "reached. At each step, check if the target directory exist, and return\nit if found. Return None if the search is unsuccessful.",
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          100,
+          0
+        ],
+        [
+          112,
+          82
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "find_parent_directory_containing_directory",
+      "params": {
+        "base": "pathlib.Path",
+        "target": "builtins.str"
+      },
+      "params_descr": {
+        "base": "",
+        "target": ""
+      },
+      "params_occur": {
+        "base": [
+          [
+            "_find_parent_directory_containing",
+            "base",
+            "target",
+            "predicate",
+            "is_directory"
+          ]
+        ],
+        "target": [
+          [
+            "_find_parent_directory_containing",
+            "base",
+            "target",
+            "predicate",
+            "is_directory"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "base": [
+          [
+            "str",
+            0.10697195014200524
+          ],
+          [
+            "int",
+            0.08426973043872744
+          ]
+        ],
+        "kwargs": [],
+        "target": [
+          [
+            "str",
+            0.10697195014200524
+          ],
+          [
+            "int",
+            0.08426973043872744
+          ]
+        ]
+      },
+      "q_name": "find_parent_directory_containing_directory",
+      "ret_exprs": [
+        "return _find_parent_directory_containing(base, target, predicate=is_directory)"
+      ],
+      "ret_type": "typing.Optional[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "bool",
+          0.31990788499735007
+        ],
+        [
+          "str",
+          0.29089698374440354
+        ],
+        [
+          "Tuple[int, int]",
+          0.1129598787690911
+        ],
+        [
+          "Dict[str, str]",
+          0.09108100715962134
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          115,
+          0
+        ],
+        [
+          135,
+          85
+        ]
+      ],
+      "fn_var_ln": {
+        "bundled_typeshed": [
+          [
+            121,
+            4
+          ],
+          [
+            121,
+            20
+          ]
+        ],
+        "bundled_typeshed_relative_path": [
+          [
+            120,
+            4
+          ],
+          [
+            120,
+            34
+          ]
+        ],
+        "current_directory": [
+          [
+            116,
+            4
+          ],
+          [
+            116,
+            21
+          ]
+        ]
+      },
+      "fn_var_occur": {
+        "bundled_typeshed": [
+          [
+            "bundled_typeshed",
+            "find_parent_directory_containing_directory",
+            "current_directory",
+            "bundled_typeshed_relative_path"
+          ],
+          [
+            "bundled_typeshed",
+            "bundled_typeshed_relative_path"
+          ]
+        ],
+        "bundled_typeshed_relative_path": [
+          [
+            "bundled_typeshed",
+            "find_parent_directory_containing_directory",
+            "current_directory",
+            "bundled_typeshed_relative_path"
+          ],
+          [
+            "bundled_typeshed",
+            "bundled_typeshed_relative_path"
+          ]
+        ],
+        "current_directory": [
+          [
+            "current_directory",
+            "pathlib",
+            "Path",
+            "Path",
+            "__file__",
+            "parent"
+          ],
+          [
+            "bundled_typeshed",
+            "find_parent_directory_containing_directory",
+            "current_directory",
+            "bundled_typeshed_relative_path"
+          ],
+          [
+            "find_parent_directory_containing_directory",
+            "current_directory"
+          ]
+        ]
+      },
+      "name": "find_typeshed",
+      "params": {},
+      "params_descr": {},
+      "params_occur": {},
+      "params_p": {
+        "args": [],
+        "kwargs": []
+      },
+      "q_name": "find_typeshed",
+      "ret_exprs": [
+        "return bundled_typeshed / bundled_typeshed_relative_path",
+        "return Path(typeshed.typeshed)",
+        "return find_parent_directory_containing_directory(current_directory, \"typeshed/\")"
+      ],
+      "ret_type": "typing.Optional[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "str",
+          0.7920409457579722
+        ],
+        [
+          "bytes",
+          0.11723982602383434
+        ]
+      ],
+      "variables": {
+        "bundled_typeshed": "",
+        "bundled_typeshed_relative_path": "",
+        "current_directory": "pathlib.Path"
+      },
+      "variables_p": {
+        "bundled_typeshed": [
+          [
+            "List[Optional[Any]]",
+            0.10173850296796128
+          ]
+        ],
+        "bundled_typeshed_relative_path": [
+          [
+            "str",
+            0.404499696656386
+          ],
+          [
+            "list",
+            0.12421634093917461
+          ],
+          [
+            "Optional[List[str]]",
+            0.09337544587799887
+          ]
+        ],
+        "current_directory": [
+          [
+            "pathlib.Path",
+            0.9999999999999999
+          ]
+        ]
+      }
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          139,
+          0
+        ],
+        [
+          156,
+          22
+        ]
+      ],
+      "fn_var_ln": {
+        "search_path": [
+          [
+            140,
+            4
+          ],
+          [
+            140,
+            15
+          ]
+        ],
+        "typeshed_subdirectories": [
+          [
+            141,
+            4
+          ],
+          [
+            141,
+            27
+          ]
+        ],
+        "typeshed_subdirectory": [
+          [
+            143,
+            8
+          ],
+          [
+            143,
+            29
+          ]
+        ],
+        "version_names": [
+          [
+            148,
+            8
+          ],
+          [
+            148,
+            21
+          ]
+        ]
+      },
+      "fn_var_occur": {
+        "search_path": [
+          [
+            "search_path",
+            "append",
+            "typeshed_subdirectory",
+            "version_name"
+          ]
+        ],
+        "typeshed_subdirectories": [],
+        "typeshed_subdirectory": [
+          [
+            "typeshed_subdirectory",
+            "typeshed_root",
+            "typeshed_subdirectory_name"
+          ],
+          [
+            "typeshed_subdirectory",
+            "is_dir"
+          ],
+          [
+            "version_names",
+            "sorted",
+            "x",
+            "name",
+            "x",
+            "typeshed_subdirectory",
+            "iterdir",
+            "reverse",
+            "True"
+          ],
+          [
+            "search_path",
+            "append",
+            "typeshed_subdirectory",
+            "version_name"
+          ]
+        ],
+        "version_names": [
+          [
+            "version_names",
+            "sorted",
+            "x",
+            "name",
+            "x",
+            "typeshed_subdirectory",
+            "iterdir",
+            "reverse",
+            "True"
+          ]
+        ]
+      },
+      "name": "find_legacy_typeshed_search_paths",
+      "params": {
+        "typeshed_root": "pathlib.Path"
+      },
+      "params_descr": {
+        "typeshed_root": ""
+      },
+      "params_occur": {
+        "typeshed_root": [
+          [
+            "typeshed_subdirectory",
+            "typeshed_root",
+            "typeshed_subdirectory_name"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "kwargs": [],
+        "typeshed_root": [
+          [
+            "str",
+            0.39042615342727416
+          ],
+          [
+            "pathlib.Path",
+            0.19578636302931407
+          ],
+          [
+            "Union[str, pathlib.Path]",
+            0.12515619778304585
+          ]
+        ]
+      },
+      "q_name": "find_legacy_typeshed_search_paths",
+      "ret_exprs": [
+        "return search_path"
+      ],
+      "ret_type": "typing.List[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "pathlib.Path",
+          0.5719391158876689
+        ],
+        [
+          "str",
+          0.3330454827642609
+        ],
+        [
+          "List[int]",
+          0.09501540134807032
+        ]
+      ],
+      "variables": {
+        "search_path": "",
+        "typeshed_subdirectories": "",
+        "typeshed_subdirectory": "",
+        "version_names": ""
+      },
+      "variables_p": {
+        "search_path": [
+          [
+            "list",
+            0.7656020360507415
+          ],
+          [
+            "List[str]",
+            0.17282378227488543
+          ],
+          [
+            "str",
+            0.06157418167437285
+          ]
+        ],
+        "typeshed_subdirectories": [
+          [
+            "str",
+            0.4
+          ],
+          [
+            "List[str]",
+            0.1
+          ],
+          [
+            "int",
+            0.1
+          ],
+          [
+            "Dict[str, List[Any]]",
+            0.1
+          ],
+          [
+            "Tuple[str, str, str, str, str, str, str, str]",
+            0.1
+          ]
+        ],
+        "typeshed_subdirectory": [
+          [
+            "Dict[Any, str]",
+            0.20912895220759278
+          ],
+          [
+            "list",
+            0.09685309296581666
+          ],
+          [
+            "Iterator[Tuple[int, Any]]",
+            0.09609681287824069
+          ]
+        ],
+        "version_names": [
+          [
+            "str",
+            0.5056759478270475
+          ],
+          [
+            "Set[str]",
+            0.19883776953918605
+          ],
+          [
+            "Dict[str, str]",
+            0.10880266836478722
+          ],
+          [
+            "dict",
+            0.09726700123859626
+          ],
+          [
+            "Pattern[str]",
+            0.08941661303038294
+          ]
+        ]
+      }
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          159,
+          0
+        ],
+        [
+          170,
+          22
+        ]
+      ],
+      "fn_var_ln": {
+        "search_path": [
+          [
+            160,
+            4
+          ],
+          [
+            160,
+            15
+          ]
+        ],
+        "third_party_root": [
+          [
+            161,
+            4
+          ],
+          [
+            161,
+            20
+          ]
+        ],
+        "third_party_subdirectories": [
+          [
+            162,
+            4
+          ],
+          [
+            162,
+            30
+          ]
+        ]
+      },
+      "fn_var_occur": {
+        "search_path": [
+          [
+            "search_path",
+            "builtins",
+            "list"
+          ],
+          [
+            "search_path",
+            "append",
+            "typeshed_subdirectory"
+          ]
+        ],
+        "third_party_root": [
+          [
+            "third_party_root",
+            "typeshed_root"
+          ],
+          [
+            "third_party_subdirectories",
+            "third_party_root",
+            "iterdir",
+            "third_party_root",
+            "is_dir"
+          ]
+        ],
+        "third_party_subdirectories": [
+          [
+            "third_party_subdirectories",
+            "third_party_root",
+            "iterdir",
+            "third_party_root",
+            "is_dir"
+          ],
+          [
+            "itertools",
+            "chain",
+            "typeshed_root",
+            "third_party_subdirectories"
+          ]
+        ]
+      },
+      "name": "find_new_typeshed_search_paths",
+      "params": {
+        "typeshed_root": "pathlib.Path"
+      },
+      "params_descr": {
+        "typeshed_root": ""
+      },
+      "params_occur": {
+        "typeshed_root": [
+          [
+            "third_party_root",
+            "typeshed_root"
+          ],
+          [
+            "itertools",
+            "chain",
+            "typeshed_root",
+            "third_party_subdirectories"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "kwargs": [],
+        "typeshed_root": [
+          [
+            "str",
+            0.9099094824142548
+          ],
+          [
+            "int",
+            0.09009051758574502
+          ]
+        ]
+      },
+      "q_name": "find_new_typeshed_search_paths",
+      "ret_exprs": [
+        "return search_path"
+      ],
+      "ret_type": "typing.List[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "pathlib.Path",
+          0.5652509875162531
+        ],
+        [
+          "str",
+          0.2294279050817138
+        ],
+        [
+          "bool",
+          0.10274009517655736
+        ],
+        [
+          "List[int]",
+          0.10258101222547567
+        ]
+      ],
+      "variables": {
+        "search_path": "builtins.list",
+        "third_party_root": "",
+        "third_party_subdirectories": ""
+      },
+      "variables_p": {
+        "search_path": [
+          [
+            "list",
+            1.0
+          ]
+        ],
+        "third_party_root": [
+          [
+            "str",
+            0.5990121752343569
+          ],
+          [
+            "pathlib.Path",
+            0.2958222577202432
+          ]
+        ],
+        "third_party_subdirectories": [
+          [
+            "bool",
+            0.08729040107251891
+          ],
+          [
+            "str",
+            0.08711307607746939
+          ]
+        ]
+      }
+    },
+    {
+      "docstring": {
+        "func": "Given the root of typeshed, find all subdirectories in it that can be used",
+        "long_descr": "as search paths for Pyre.",
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          173,
+          0
+        ],
+        [
+          184,
+          60
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "find_typeshed_search_paths",
+      "params": {
+        "typeshed_root": "pathlib.Path"
+      },
+      "params_descr": {
+        "typeshed_root": ""
+      },
+      "params_occur": {
+        "typeshed_root": [
+          [
+            "typeshed_root",
+            "is_dir"
+          ],
+          [
+            "find_legacy_typeshed_search_paths",
+            "typeshed_root"
+          ],
+          [
+            "find_new_typeshed_search_paths",
+            "typeshed_root"
+          ]
+        ]
+      },
+      "params_p": {
+        "args": [],
+        "kwargs": [],
+        "typeshed_root": [
+          [
+            "str",
+            0.2937580055756236
+          ],
+          [
+            "Union[str, pathlib.Path]",
+            0.11853306513158528
+          ],
+          [
+            "int",
+            0.09750539304630534
+          ],
+          [
+            "pathlib.Path",
+            0.09316430991950735
+          ]
+        ]
+      },
+      "q_name": "find_typeshed_search_paths",
+      "ret_exprs": [
+        "return find_legacy_typeshed_search_paths(typeshed_root)",
+        "return find_new_typeshed_search_paths(typeshed_root)"
+      ],
+      "ret_type": "typing.List[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "Optional[str]",
+          0.27874183157627247
+        ],
+        [
+          "pathlib.Path",
+          0.12867227416538388
+        ],
+        [
+          "Optional[TextIO]",
+          0.09829727590264316
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    },
+    {
+      "docstring": {
+        "func": null,
+        "long_descr": null,
+        "ret": null
+      },
+      "fn_lc": [
+        [
+          187,
+          0
+        ],
+        [
+          190,
+          5
+        ]
+      ],
+      "fn_var_ln": {},
+      "fn_var_occur": {},
+      "name": "find_taint_models_directory",
+      "params": {},
+      "params_descr": {},
+      "params_occur": {},
+      "params_p": {
+        "args": [],
+        "kwargs": []
+      },
+      "q_name": "find_taint_models_directory",
+      "ret_exprs": [
+        "return find_parent_directory_containing_directory( Path(__file__).parent, \"pyre_check/taint/\")"
+      ],
+      "ret_type": "typing.Optional[pathlib.Path]",
+      "ret_type_p": [
+        [
+          "str",
+          0.31427504125756134
+        ],
+        [
+          "List[str]",
+          0.2635595879374319
+        ],
+        [
+          "bool",
+          0.08399384446725708
+        ]
+      ],
+      "variables": {},
+      "variables_p": {}
+    }
+  ],
+  "imports": [
+    "itertools",
+    "logging",
+    "pathlib",
+    "Path",
+    "typing",
+    "Callable",
+    "List",
+    "NamedTuple",
+    "Optional",
+    "typeshed"
+  ],
+  "mod_var_ln": {
+    "BINARY_NAME": [
+      [
+        14,
+        0
+      ],
+      [
+        14,
+        11
+      ]
+    ],
+    "CLIENT_NAME": [
+      [
+        15,
+        0
+      ],
+      [
+        15,
+        11
+      ]
+    ],
+    "CONFIGURATION_FILE": [
+      [
+        12,
+        0
+      ],
+      [
+        12,
+        18
+      ]
+    ],
+    "LOCAL_CONFIGURATION_FILE": [
+      [
+        13,
+        0
+      ],
+      [
+        13,
+        24
+      ]
+    ],
+    "LOG": [
+      [
+        18,
+        0
+      ],
+      [
+        18,
+        3
+      ]
+    ]
+  },
+  "mod_var_occur": {
+    "BINARY_NAME": [],
+    "CLIENT_NAME": [],
+    "CONFIGURATION_FILE": [
+      [
+        "find_parent_directory_containing_file",
+        "base",
+        "CONFIGURATION_FILE"
+      ],
+      [
+        "found_global_root",
+        "find_parent_directory_containing_file",
+        "base",
+        "CONFIGURATION_FILE"
+      ]
+    ],
+    "LOCAL_CONFIGURATION_FILE": [
+      [
+        "found_local_root",
+        "find_parent_directory_containing_file",
+        "base",
+        "LOCAL_CONFIGURATION_FILE"
+      ]
+    ],
+    "LOG": [
+      [
+        "LOG",
+        "debug"
+      ]
+    ]
+  },
+  "no_types_annot": {
+    "D": 35,
+    "I": 0,
+    "U": 15
+  },
+  "set": null,
+  "tc": [
+    false,
+    null
+  ],
+  "type_annot_cove": 0.7,
+  "typed_seq": "",
+  "untyped_seq": "",
+  "variables": {
+    "BINARY_NAME": "",
+    "CLIENT_NAME": "builtins.str",
+    "CONFIGURATION_FILE": "",
+    "LOCAL_CONFIGURATION_FILE": "",
+    "LOG": "logging.Logger"
+  },
+  "variables_p": {
+    "BINARY_NAME": [
+      [
+        "str",
+        0.7
+      ],
+      [
+        "Optional[str]",
+        0.19999999999999998
+      ],
+      [
+        "List[str]",
+        0.09999999999999999
+      ]
+    ],
+    "CLIENT_NAME": [
+      [
+        "str",
+        0.8000000000886464
+      ]
+    ],
+    "CONFIGURATION_FILE": [
+      [
+        "pathlib.Path",
+        0.37637396377337873
+      ],
+      [
+        "str",
+        0.19271828320487638
+      ],
+      [
+        "paradigm.catalog.Path",
+        0.08972269490119361
+      ],
+      [
+        "List[pathlib.Path]",
+        0.08676762990130696
+      ]
+    ],
+    "LOCAL_CONFIGURATION_FILE": [
+      [
+        "str",
+        0.9196580019572819
+      ],
+      [
+        "pathlib.Path",
+        0.08034199804271813
+      ]
+    ],
+    "LOG": [
+      [
+        "logging.Logger",
+        0.8999999999999999
+      ],
+      [
+        "Dict[str, Union[Any, Any, Any, Any]]",
+        0.1
+      ]
+    ]
+  }
+}
