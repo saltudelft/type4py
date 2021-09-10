@@ -80,13 +80,16 @@ Description:
 
 ## 6. Evaluating
 ```
-$ type4py eval --o $OUTPUT_DIR --c --tp 10
+$ type4py eval --o $OUTPUT_DIR --t c --tp 10
 ```
 
 Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `--c`: Evaluates the complete model. Use `type4py eval -h` to see other configurations.
-- `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Optional]
+- `--t`: Evaluates the model considering different prediction tasks. E.g., `--t c` considers all predictions tasks,
+  i.e., parameters, return, and variables. [Default: c]
+- `--tp 10`: Considers Top-10 predictions for evaluation. For this argument, You can choose a positive integer between 1 and 10. [Default: 10]
+
+Use `type4py eval -h` to see other options.
 
 # Converting Type4Py to ONNX
 To convert the pre-trained Type4Py model to the [ONNX](https://onnxruntime.ai/) format, use the following command:
