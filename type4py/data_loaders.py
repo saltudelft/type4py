@@ -427,3 +427,34 @@ class TripletDataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         return len(self.data)
+
+
+class Type4PyDataset():
+    def __init__(self, data_loading_func: dict, output_path) -> None:
+        self.data_loading_func = data_loading_func
+        self.output_path = output_path
+
+    def load_training_data_per_model(self, no_batches: int, no_workers: int) -> Tuple[DataLoader, DataLoader]:
+        load_data_t = time()
+        X_id_train, X_tok_train, X_type_train = self.data_loading_func['train'](self.output_path)
+        X_id_valid, X_tok_valid, X_type_valid = self.data_loading_func['valid'](self.output_path)
+        self.labels_train, self.labels_valid, _ = self.data_loading_func['labels'](self.output_path)
+
+        train_data_loader = DataLoader(TensorDataset(X_id_train, X_tok_train, X_type_train,
+                                        self.labels_train), batch_size=no_batches, shuffle=True,
+                                        pin_memory=True, num_workers=no_workers)
+        valid_loader = DataLoader(TensorDataset(X_id_valid, X_tok_valid, X_type_valid,
+                                        self.labels_valid), batch_size=no_batches, num_workers=no_workers)
+
+        logger.info(f"Loaded train and valid sets of the {self.data_loading_func['name']} dataset in {(time()-load_data_t)/60:.2f} min")
+        return train_data_loader, valid_loader
+
+    def load_test_data_per_model(self, no_batches: int, no_workers: int, drop_last_batch:bool=False) -> DataLoader:
+        load_data_t = time()
+        X_id_test, X_tok_test, X_type_test, t_idx = self.data_loading_func['test'](self.output_path)
+        _, _, self.labels_test = self.data_loading_func['labels'](self.output_path)
+
+        logger.info(f"Loaded the test set of the {self.data_loading_func['name']} dataset in {(time()-load_data_t)/60:.2f} min")
+        return DataLoader(TensorDataset(X_id_test, X_tok_test, X_type_test,
+                                        self.labels_test), batch_size=no_batches, num_workers=no_workers,
+                                        drop_last=drop_last_batch), t_idx

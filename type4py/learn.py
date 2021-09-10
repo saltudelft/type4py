@@ -1,4 +1,4 @@
-from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model
+from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, Type4PyDataset
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
 from type4py.utils import load_json
@@ -11,6 +11,7 @@ from os.path import join
 from time import time
 from annoy import AnnoyIndex
 from tqdm import tqdm
+from pytorch_metric_learning import losses, miners
 import numpy as np
 import torch.nn as nn
 import torch
@@ -287,6 +288,37 @@ def train_loop_dsl(model: TripletModel, criterion, optimizer, train_data_loader:
                 logger.info(f"epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
                 #torch.save(model.module, join(model_path, f"{model.module.tw_embed_model.__class__.__name__}_{train_data_loader.dataset.dataset_name}_e{epoch}_{datetime.now().strftime('%b%d_%H-%M-%S')}.pt"))
 
+def train_loop_mtl(model: Type4Py, loss_func, optimizer, miner, train_data_loader: DataLoader, 
+                   valid_data_loader: DataLoader, epochs: int):
+    for epoch in range(1, epochs + 1):
+        model.train()
+        total_loss = 0
+        for batch_i, (batch_id, batch_tok, batch_type, labels) in enumerate(tqdm(train_data_loader,
+                                                                            total=len(train_data_loader), desc=f"Epoch {epoch}")):
+            batch_id, batch_tok, batch_type = batch_id.to(DEVICE), batch_tok.to(DEVICE), batch_type.to(DEVICE)
+            labels = labels.to(DEVICE)
+
+            optimizer.zero_grad()
+            output_embed = model(batch_id, batch_tok, batch_type)
+            hard_pairs = miner(output_embed, labels)
+            loss = loss_func(output_embed, labels, hard_pairs)
+
+            # Backward and optimize
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+        logger.info(f"Epoch: {epoch} train loss: {total_loss}")
+        if valid_data_loader is not None:
+            if epoch % 5 == 0:
+                logger.info("Evaluating on validation set")
+                valid_start = time()
+                valid_loss = compute_validation_mtl(model, loss_func, miner, valid_data_loader)
+                logger.info(f"Epoch: {epoch} valid loss: {valid_loss} in {(time() - valid_start) / 60.0:.2f} min.")
+
+        
+
+
 def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_loader: DataLoader,
                                 valid_data_loader: DataLoader, pred_func: callable,
                                 ubiquitous_types:str, common_types: set) -> Tuple[float, float]:
@@ -339,46 +371,82 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
     return valid_total_loss, 0.0
 
+def compute_validation_mtl(model: Type4Py, loss_func, miner, valid_data_loader: DataLoader) -> float:
+    """
+    Computes validation loss for Deep Similarity Learning-based approach
+    """
+    
+    valid_total_loss = 0
+    with torch.no_grad():
+        model.eval()
+        for batch_i, (batch_id, batch_tok, batch_type, labels) in enumerate(tqdm(valid_data_loader,
+                                                                        total=len(valid_data_loader), 
+                                                                        desc=f"Type Cluster - Valid set")):
+            batch_id, batch_tok, batch_type = batch_id.to(DEVICE), batch_tok.to(DEVICE), batch_type.to(DEVICE)
+            labels = labels.to(DEVICE)
+
+            output_embed = model(batch_id, batch_tok, batch_type)
+            hard_pairs = miner(output_embed, labels)
+            loss = loss_func(output_embed, labels, hard_pairs)
+            valid_total_loss += loss.item()
+
+    return valid_total_loss
+
 def train(output_path: str, data_loading_funcs: dict, model_params_path=None, validation:bool=False):
     
     logger.info(f"Training Type4Py model")
     logger.info(f"***********************************************************************")
    
-    # Model's hyper parameters
+    # # Model's hyper parameters
     model_params = load_model_params(model_params_path)
-    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
-                                                                        model_params['batches'],
-                                                                        no_workers=cpu_count()//2)
+    t4py_dataset = Type4PyDataset(data_loading_funcs, output_path)
+    train_data_loader, valid_data_loader = t4py_dataset.load_training_data_per_model(model_params['batches'], 
+                                                                                     cpu_count()//2)
+    # train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+    #                                                                     model_params['batches'],
+    #                                                                     no_workers=cpu_count()//2)
+
+    # X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
+    # #X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
+    # Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
+    # train_data_loader = DataLoader(torch.utils.data.TensorDataset(X_id_train, X_tok_train, X_type_train,
+    #                                     Y_all_train), batch_size=model_params['batches'], shuffle=True,
+    #                                     pin_memory=True, num_workers=cpu_count()//2)
 
     # Loading label encoder and finding ubiquitous & common types
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
-    count_types = Counter(train_data_loader.dataset.labels.data.numpy())
-    common_types = [t.item() for t in train_data_loader.dataset.labels if count_types[t.item()] >= 100]
+    count_types = Counter(t4py_dataset.labels_train.data.numpy())
+    common_types = [t.item() for t in t4py_dataset.labels_train if count_types[t.item()] >= 100]
     ubiquitous_types = set(le_all.transform(['str', 'int', 'list', 'bool', 'float']))
     common_types = set(common_types) - ubiquitous_types
 
     logger.info("Percentage of ubiquitous types: %.2f%%" % (len([t.item() for t in \
-        train_data_loader.dataset.labels if t.item() in ubiquitous_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
+        t4py_dataset.labels_train if t.item() in ubiquitous_types]) / t4py_dataset.labels_train.shape[0]*100.0))
     logger.info("Percentage of common types: %.2f%%" % (len([t.item() for t in \
-        train_data_loader.dataset.labels if t.item() in common_types]) / train_data_loader.dataset.labels.shape[0]*100.0))
+        t4py_dataset.labels_train if t.item() in common_types]) / t4py_dataset.labels_train.shape[0]*100.0))
 
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
 
     # Loading the model
-    model = load_model(data_loading_funcs['name'], model_params)
+    #model = load_model(data_loading_funcs['name'], model_params)
+    model = Type4Py(W2V_VEC_LENGTH, model_params['hidden_size'], AVAILABLE_TYPES_NUMBER, model_params['layers'],
+                    model_params['output_size'], model_params['dr']).to(DEVICE)
     logger.info(f"Intializing the {model.__class__.__name__} model")
-    model = TripletModel(model).to(DEVICE)
+    # model = TripletModel(model).to(DEVICE)
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
 
-    criterion = torch.nn.TripletMarginLoss(margin=model_params['margin'])
+    # criterion = torch.nn.TripletMarginLoss(margin=model_params['margin'])
+    loss_func = losses.TripletMarginLoss(margin=model_params['margin'], swap=True)  
     optimizer = torch.optim.Adam(model.parameters(), lr=model_params['lr'])
+    miner = miners.BatchHardMiner()
 
     train_t = time()
-    train_loop_dsl(model, criterion, optimizer, train_data_loader,
-                   valid_data_loader if validation else None, model_params['lr'],
-                   model_params['epochs'], ubiquitous_types, common_types, None)
+    # train_loop_dsl(model, criterion, optimizer, train_data_loader,
+    #                valid_data_loader if validation else None, model_params['lr'],
+    #                model_params['epochs'], ubiquitous_types, common_types, None)
+    train_loop_mtl(model, loss_func, optimizer, miner, train_data_loader, valid_data_loader, model_params['epochs'])
     logger.info("Training finished in %.2f min" % ((time()-train_t) / 60))
 
     # Saving the model

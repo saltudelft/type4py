@@ -1,9 +1,10 @@
-from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
+from type4py.data_loaders import Type4PyDataset, select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
 from type4py.learn import load_model_params, TripletModel, create_knn_index
 from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from libsa4py.utils import save_json
 from typing import Tuple, List
 from collections import defaultdict
+from multiprocessing import cpu_count
 from os.path import join
 from time import time
 from torch.utils.data import DataLoader
@@ -77,28 +78,39 @@ def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader:
     annoy_idx = AnnoyIndex(model.output_size, 'euclidean')
     curr_idx = 0
 
-    for _, (a, _, _) in enumerate(tqdm(train_data_loader, total=len(train_data_loader), desc="Computing Type Clusters - Train set")):
+    #for _, (a, _, _) in enumerate(tqdm(train_data_loader, total=len(train_data_loader), desc="Computing Type Clusters - Train set")):
+    for batch_i, (batch_id, batch_tok, batch_type, labels) in enumerate(tqdm(train_data_loader,
+                                                                             total=len(train_data_loader),
+                                                                             desc="Computing Type Clusters - Train set")):
+        batch_id, batch_tok, batch_type = batch_id.to(DEVICE), batch_tok.to(DEVICE), batch_type.to(DEVICE)
+
         model.eval()
         with torch.no_grad():
-            output_a = model(*(s.to(DEVICE) for s in a[0]))
-            lables = a[1].data.cpu().numpy()
+            output_embed = model(batch_id, batch_tok, batch_type)
+            #output_a = model(*(s.to(DEVICE) for s in a[0]))
+            #lables = a[1].data.cpu().numpy()
             #computed_embed_labels.append(lables)
-            for i, v in enumerate(output_a.data.cpu().numpy()):
-                if lables[i] in type_vocab:
+            for i, v in enumerate(output_embed.data.cpu().numpy()):
+                if labels[i].item() in type_vocab:
                     annoy_idx.add_item(curr_idx, v)
-                    computed_embed_labels.append(lables[i])
+                    computed_embed_labels.append(labels[i].item())
                     curr_idx += 1
 
-    for _, (a, _, _) in enumerate(tqdm(valid_data_loader, total=len(valid_data_loader), desc="Computing Type Clusters - Valid set")):
+    #for _, (a, _, _) in enumerate(tqdm(valid_data_loader, total=len(valid_data_loader), desc="Computing Type Clusters - Valid set")):
+    for batch_i, (batch_id, batch_tok, batch_type, labels) in enumerate(tqdm(valid_data_loader,
+                                                                        total=len(valid_data_loader), 
+                                                                        desc=f"Computing Type Clusters - Valid set")):
+        batch_id, batch_tok, batch_type = batch_id.to(DEVICE), batch_tok.to(DEVICE), batch_type.to(DEVICE)
         model.eval()
         with torch.no_grad():
-            output_a = model(*(s.to(DEVICE) for s in a[0]))
-            lables = a[1].data.cpu().numpy()
+            output_embed = model(batch_id, batch_tok, batch_type)
+            #output_a = model(*(s.to(DEVICE) for s in a[0]))
+            #lables = a[1].data.cpu().numpy()
             #computed_embed_labels.append(a[1].data.cpu().numpy())
-            for i, v in enumerate(output_a.data.cpu().numpy()):
-                if lables[i] in type_vocab:
+            for i, v in enumerate(output_embed.data.cpu().numpy()):
+                if labels[i].item() in type_vocab:
                     annoy_idx.add_item(curr_idx, v)
-                    computed_embed_labels.append(lables[i])
+                    computed_embed_labels.append(labels[i].item())
                     curr_idx += 1
 
     annoy_idx.build(KNN_TREE_SIZE)
@@ -112,12 +124,17 @@ def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, 
     computed_embed_batches = []
     computed_embed_labels = []
 
-    for batch_i, (a, p, n) in enumerate(tqdm(data_loader, total=len(data_loader), desc="Computing Type Clusters")):
+    #for batch_i, (a, p, n) in enumerate(tqdm(data_loader, total=len(data_loader), desc="Computing Type Clusters")):
+    for batch_i, (batch_id, batch_tok, batch_type, labels) in enumerate(tqdm(data_loader,
+                                                                        total=len(data_loader), 
+                                                                        desc=f"Computing Type Clusters")):
+        batch_id, batch_tok, batch_type = batch_id.to(DEVICE), batch_tok.to(DEVICE), batch_type.to(DEVICE)
         model.eval()
         with torch.no_grad():
-            output_a = model(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_batches.append(output_a.data.cpu().numpy())
-            computed_embed_labels.append(a[1].data.cpu().numpy())
+            #output_a = model(*(s.to(DEVICE) for s in a[0]))
+            output_embed = model(batch_id, batch_tok, batch_type)
+            computed_embed_batches.append(output_embed.data.cpu().numpy())
+            computed_embed_labels.append(labels.data.cpu().numpy())
 
     return np.vstack(computed_embed_batches), np.hstack(computed_embed_labels)
 
@@ -130,8 +147,11 @@ def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None)
     
     # Model's hyper parameters
     model_params = load_model_params()
-    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
-                                                                        model_params['batches_test'], train_mode=False)
+    # train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+    #                                                                     model_params['batches_test'], train_mode=False)
+    t4py_dataset = Type4PyDataset(data_loading_funcs, output_path)
+    train_data_loader, valid_data_loader = t4py_dataset.load_training_data_per_model(model_params['batches'], 
+                                                                                     cpu_count()//2)
 
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
     logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
@@ -141,16 +161,17 @@ def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None)
     type_vocab = pd.read_csv(join(output_path, '_most_frequent_all_types.csv')).head(type_vocab_limit if type_vocab_limit is not None else -1)
     type_vocab = set(le_all.transform(type_vocab['type'].values))
 
-    annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader, type_vocab)
+    annoy_index, embed_labels = build_type_clusters(model, train_data_loader, valid_data_loader, type_vocab)
     logger.info("Created type clusters")
 
     annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster"))
     np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"), embed_labels)
     logger.info("Saved type clusters")
 
-    test_data_loader, t_idx = load_test_data_per_model(data_loading_funcs, output_path, model_params['batches_test'])
+    #test_data_loader, t_idx = load_test_data_per_model(data_loading_funcs, output_path, model_params['batches_test'])
+    test_data_loader, t_idx = t4py_dataset.load_test_data_per_model(model_params['batches'], cpu_count()//2)
     logger.info("Mapping test samples to type clusters")
-    test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_data_loader)
+    test_type_embed, embed_test_labels = compute_type_embed_batch(model, test_data_loader)
     
     # Perform KNN search and predict
     logger.info("Performing KNN search")
