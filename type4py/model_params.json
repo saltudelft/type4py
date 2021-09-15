@@ -2,7 +2,7 @@
     "epochs": 25,
     "lr": 0.002,
     "dr": 0.25,
-    "output_size": 4096,
+    "output_size": 1536,
     "batches": 2536,
     "batches_test": 8192,
     "layers": 1,
