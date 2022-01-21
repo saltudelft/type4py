@@ -12,7 +12,7 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Citing Type4Py](#citing-type4py)
 
 # Dataset
-For Type4Py, we use the **ManyTypes4Py** dataset. You can download the latest version of the dataset [here](https://zenodo.org/record/4719447).
+For Type4Py, we use the **ManyTypes4Py** dataset. You can download the latest version of the dataset [here](https://doi.org/10.5281/zenodo.4044635).
 Also, note that the dataset is already de-duplicated.
 
 ## Code De-deduplication
