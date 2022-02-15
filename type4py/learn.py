@@ -347,7 +347,7 @@ def train(output_path: str, data_loading_funcs: dict, model_params_path=None, va
     # Model's hyper parameters
     model_params = load_model_params(model_params_path)
     train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
-                                                                        model_params['batches'],
+                                                                        model_params['batches'], load_valid_data=validation,
                                                                         no_workers=cpu_count()//2)
 
     # Loading label encoder and finding ubiquitous & common types
