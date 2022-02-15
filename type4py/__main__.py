@@ -43,7 +43,7 @@ def extract(args):
 def preprocess(args):
     from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
-    preprocess_ext_fns(args.o, args.l)
+    preprocess_ext_fns(args.o, args.l, args.rvth)
 
 def vectorize(args):
     from type4py.vectorize import vectorize_args_ret
@@ -108,10 +108,11 @@ def main():
     extract_parser.set_defaults(func=extract)
 
     # Preprocess phase
-    proprocess_parser = sub_parsers.add_parser('preprocess')
-    proprocess_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    proprocess_parser.add_argument('--l', '--limit', required=False, type=int, help="Limits the number of projects to be processed")
-    proprocess_parser.set_defaults(func=preprocess)
+    preprocess_parser = sub_parsers.add_parser('preprocess')
+    preprocess_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    preprocess_parser.add_argument('--l', '--limit', required=False, type=int, help="Limits the number of projects to be processed")
+    preprocess_parser.add_argument('--rvth', '--random-vth', default=False, action="store_true", help="Apply available type hints with a probability [Default=0.5] *ONLY FOR PRODUCTION*")
+    preprocess_parser.set_defaults(func=preprocess)
 
     # Vectorize phase
     vectorize_parser = sub_parsers.add_parser('vectorize')
