@@ -12,13 +12,17 @@ class PredictResponse:
         self.error = error
     
     def get(self):
-        dbm.sqla.session.add(dbm.PredictReqs(sha1(get_remote_address().encode()).hexdigest(), session.get("act_id"),
-                                             session.get("session_id"), session['file_hash'], session.get("req_start_t"),
-                                             datetime.now(), session.get('error'), self.response, session.get("ext_ver")))
-        dbm.sqla.session.commit()
+        self.log2db()
         if self.response is not None:
             self.response['session_id'] = session.get("session_id")
         return {'response': self.response, 'error': self.error}
+
+    def log2db(self):
+        if not session.get('t4py_docker_mode'):
+            dbm.sqla.session.add(dbm.PredictReqs(sha1(get_remote_address().encode()).hexdigest(), session.get("act_id"),
+                                             session.get("session_id"), session['file_hash'], session.get("req_start_t"),
+                                             datetime.now(), session.get('error'), self.response, session.get("ext_ver")))
+            dbm.sqla.session.commit()
 
 
 class TelemetryResponse(ABC):
