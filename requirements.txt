@@ -1,15 +1,9 @@
 numpy
-tqdm
-joblib
 pandas
-asttokens
-astor
-docstring-parser
 scikit-learn
 gensim>=4.0.0
 annoy>=1.17.0
 torch
-dpu_utils
 libsa4py
 onnx
 onnxruntime
