@@ -51,17 +51,18 @@ class PretrainedType4Py:
         self.vths = None
 
     def load_pretrained_model(self):
-        self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"))
         self.type4py_model_params = load_model_params()
-        logger.info(f"Loaded the pre-trained Type4Py model")
         
         if self.device == 'gpu':
-            self.type4py_model.set_providers(['CUDAExecutionProvider'])
+            self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"),
+                                                              providers=['CUDAExecutionProvider'])
             logger.info("The model runs on GPU")
         elif self.device == 'cpu':
-            self.type4py_model.set_providers(['CPUExecutionProvider'])
+            self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"),
+                                                              providers=['CPUExecutionProvider'])
             logger.info("The model runs on CPU")
 
+        logger.info(f"Loaded the pre-trained Type4Py model")
         self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
         logger.info(f"Loaded the pre-trained W2V model")
 
