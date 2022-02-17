@@ -91,6 +91,17 @@ Description:
 
 Use `type4py eval -h` to see other options.
 
+## Reduce
+To reduce the dimension of the created type clusters in step 5, run the following command:
+> Note: The reduced version of type clusters causes a slight performance loss in type prediction.
+```
+$ type4py reduce --o $OUTPUT_DIR --d $DIMENSION
+```
+
+Description:
+- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
+- `$DIMENSION`: Reduces the dimension of type clusters to the specified value [Default: 256]
+
 # Converting Type4Py to ONNX
 To convert the pre-trained Type4Py model to the [ONNX](https://onnxruntime.ai/) format, use the following command:
 ```

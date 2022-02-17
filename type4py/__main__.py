@@ -1,5 +1,6 @@
 from type4py import data_loaders
 from type4py.to_onnx import type4py_to_onnx
+from type4py.reduce import reduce_tc
 from type4py.utils import setup_logs_file
 from libsa4py.cst_pipeline import Pipeline
 from libsa4py.utils import find_repos_list
@@ -72,7 +73,7 @@ def predict(args):
     elif args.wov:
         test(args.o, data_loading_wov, args.l)
     elif args.c:
-        test(args.o, data_loading_comb, args.l)
+        test(args.o, data_loading_comb, args.l, args.rtc)
 
 def eval(args):
     from type4py.eval import evaluate
@@ -135,6 +136,7 @@ def main():
     predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     predict_parser.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
     predict_parser.add_argument('--l', '--limit', required=False, type=int, help="Limiting the size of type vocabulary when building type clusters")
+    predict_parser.add_argument('--rtc', '--reduced-tc', default=False, action="store_true", help="Use reduced type clusters")
     predict_parser.add_argument('--woi', default=False, action="store_true", help="Type4py model w/o identifiers")
     predict_parser.add_argument('--woc', default=False, action="store_true", help="Type4py model w/o code contexts")
     predict_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
@@ -166,9 +168,14 @@ def main():
     onnx_parser.add_argument("--o", required=True, type=str, help="Path to processed projects")
     onnx_parser.set_defaults(func=type4py_to_onnx)
 
+    # Reduce
+    reduce_parser = sub_parsers.add_parser('reduce')
+    reduce_parser.add_argument("--o", required=True, type=str, help="Path to processed projects")
+    reduce_parser.add_argument("--d", default=256, type=int, help="A new dimension for type clusters [Default: 256]")
+    reduce_parser.set_defaults(func=reduce_tc)
+
     args = arg_parser.parse_args()
     args.func(args)
-
 
 if __name__ == "__main__":
     main()
