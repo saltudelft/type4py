@@ -23,7 +23,8 @@ def load_type4py_model():
     global t4py_pretrained_m
     t4py_pretrained_m = PretrainedType4Py(app.config['MODEL_PATH'],
                                           app.config['DEVICE'],
-                                          app.config['PRE_READ_TYPE_CLUSTER'])
+                                          app.config['PRE_READ_TYPE_CLUSTER'],
+                                          session.get('t4py_docker_mode'))
     t4py_pretrained_m.load_pretrained_model()
 
 @app.before_request

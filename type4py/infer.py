@@ -37,13 +37,15 @@ OUTPUT_FILE_SUFFIX = "_type4py_typed.py"
 ALL_PY_TYPES = set(list(PY_BUILTINS_MOD) + list(PY_COLLECTION_MOD) + list(PY_TYPING_MOD))
 
 class PretrainedType4Py:
-    def __init__(self, pre_trained_model_path, device='gpu', pre_read_type_cluster=False):
+    def __init__(self, pre_trained_model_path, device='gpu', pre_read_type_cluster=False, use_pca=False):
         self.pre_trained_model_path = pre_trained_model_path
-        self.pre_read_type_cluster = pre_read_type_cluster
         self.device = device
-
+        self.pre_read_type_cluster = pre_read_type_cluster
+        self.use_pca = use_pca
+        
         self.type4py_model = None
         self.type4py_model_params = None
+        self.type4py_pca = None
         self.w2v_model = None
         self.type_clusters_idx = None
         self.type_clusters_labels = None
@@ -62,12 +64,17 @@ class PretrainedType4Py:
                                                               providers=['CPUExecutionProvider'])
             logger.info("The model runs on CPU")
 
+        if self.use_pca:
+            self.type4py_pca = pickle.load(open(join(self.pre_trained_model_path, "type_clusters_pca.pkl"), 'rb'))
+            logger.info("Using PCA transformation")
         logger.info(f"Loaded the pre-trained Type4Py model")
+
         self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
         logger.info(f"Loaded the pre-trained W2V model")
 
-        self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
-        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"),
+        self.type_clusters_idx = AnnoyIndex(self.type4py_pca.n_components_ if self.use_pca else self.type4py_model_params['output_size'],
+                                            'euclidean')
+        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster_reduced" if self.use_pca else "type4py_complete_type_cluster"),
                                     prefault=self.pre_read_type_cluster)
         self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
         self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
@@ -264,9 +271,12 @@ def get_type_preds_single_file(src_f_ext:dict, all_type_slots: Tuple[list], all_
         vth_dps = np.concatenate(tuple(vth_dps))
     else:
         id_dps, code_tks_dps, vth_dps = id_dps[0], code_tks_dps[0], vth_dps[0]
-     
-    for i, ts_preds in enumerate(infer_preds_score(type_embed_single_dp(pre_trained_m.type4py_model, id_dps,
-                                                                        code_tks_dps, vth_dps))):
+    
+    preds = type_embed_single_dp(pre_trained_m.type4py_model, id_dps, code_tks_dps, vth_dps)
+    if pre_trained_m.use_pca:
+        preds = pre_trained_m.type4py_pca.transform(preds)
+
+    for i, ts_preds in enumerate(infer_preds_score(preds)):
         all_type_slots[i][0][all_type_slots[i][1]] = ts_preds
 
     return src_f_ext
