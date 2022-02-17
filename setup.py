@@ -4,6 +4,9 @@ from type4py import __version__
 
 here = path.abspath(path.dirname(__file__))
 
+with open('requirements.txt') as f:
+    required_deps = f.read().splitlines()
+
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
@@ -19,9 +22,9 @@ setup(
     classifiers=[
         'Environment :: Console',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Operating System :: Unix',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
@@ -29,9 +32,8 @@ setup(
     ],
     keywords='deep learning type inference prediction similarity learning python source code type4py',
     packages=['type4py'],
-    python_requries='>=3.5',
-    install_requires=['numpy', 'tqdm', 'joblib', 'pandas', 'asttokens', 'astor', 'docstring-parser',
-                      'scikit-learn', 'gensim', 'annoy', 'torch', 'dpu_utils', 'libsa4py'],
+    python_requries='>=3.6',
+    install_requires=required_deps,
     entry_points={
         'console_scripts': [
             'type4py = type4py.__main__:main',
