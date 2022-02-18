@@ -184,10 +184,10 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
             arg_descr = literal_eval(row['arg_descrs'])[p_i]
             arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])[p_i]]
             other_args = " ".join([a for a in literal_eval(row['arg_names']) if a != 'self'])
-            arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur])
+            arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur, row['aval_types']])
 
     return pd.DataFrame(arguments, columns=['file', 'func_name', 'func_descr', 'arg_name', 'arg_type', 'arg_comment', 'other_args',
-                                            'arg_occur'])
+                                            'arg_occur', 'aval_types'])
 
 def filter_return_dp(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -270,9 +270,6 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.D
                       Therefore, the model needs to learn from a training set where there are not VTHs available at least half of the time.
     """
 
-    if apply_rvth:
-        logger.info(f"Encoding available type hints with a probability of {AVAILABLE_TYPE_APPLY_PROB:.2f}")
-
     types = df_aval_types['Types'].tolist()
 
     def trans_aval_type(x):
@@ -282,10 +279,16 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.D
                     return i
         return len(types) - 1
 
-    # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
-    df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
-    df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
-    df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
+    if not apply_rvth:
+        # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
+        df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
+        df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
+        df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
+    else:
+        logger.info(f"Encoding available type hints with a probability of {AVAILABLE_TYPE_APPLY_PROB:.2f}")
+        df_param['param_aval_enc'] = df_param['aval_types'].progress_apply(lambda x: trans_aval_type(x))
+        df_ret['ret_aval_enc'] = df_ret['aval_types'].progress_apply(lambda x: trans_aval_type(x))
+        df_var['var_aval_enc'] = df_var['aval_types'].progress_apply(lambda x: trans_aval_type(x))
 
     return df_param, df_ret
 
