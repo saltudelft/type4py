@@ -20,6 +20,7 @@ jobs:
         run: |
           wget https://type4py.com/pretrained_models/type4py_model_files_v0.1.tar.gz
           tar -xvzf type4py_model_files_v0.1.tar.gz
+          rm type4py_model_files_v0.1.tar.gz
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
