@@ -1,5 +1,5 @@
 from setuptools import setup
-from os import path
+from os import path, environ
 from type4py import __version__
 
 here = path.abspath(path.dirname(__file__))
@@ -9,6 +9,9 @@ with open('requirements.txt') as f:
 
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+if "T4PY_DOCKER_MODE" in environ:
+    required_deps.remove("torch")
 
 setup(
     name='type4py',
@@ -25,6 +28,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Operating System :: Unix',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
