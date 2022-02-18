@@ -113,13 +113,12 @@ def compute_type_embed_batch(model, data_loader: DataLoader, pca: PCA =None) -> 
     computed_embed_batches = []
     computed_embed_labels = []
 
-    transform_func = lambda x: pca.transform(x.data.cpu().numpy()) if pca is not None else lambda x: x.data.cpu().numpy()
-
     for batch_i, (a, p, n) in enumerate(tqdm(data_loader, total=len(data_loader), desc="Computing Type Clusters")):
         model.eval()
         with torch.no_grad():
             output_a = model(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_batches.append(transform_func(output_a))
+            output_a = output_a.data.cpu().numpy()
+            computed_embed_batches.append(pca.transform(output_a) if pca is not None else output_a)
             computed_embed_labels.append(a[1].data.cpu().numpy())
 
     return np.vstack(computed_embed_batches), np.hstack(computed_embed_labels)
@@ -160,7 +159,7 @@ def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None,
         embed_labels = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"))
         annoy_index = AnnoyIndex(pca_transform.n_components_, 'euclidean')
         annoy_index.load(join(output_path, "type4py_complete_type_cluster_reduced"))
-
+    
     logger.info("Loading test set")
     test_data_loader, t_idx = load_test_data_per_model(data_loading_funcs, output_path, model_params['batches_test'])
     logger.info("Mapping test samples to type clusters")
