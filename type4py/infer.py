@@ -4,11 +4,10 @@ This module loads the pre-trained Type4Py model to infer type annotations for a 
 
 from typing import List, Optional, Tuple
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
-from type4py.learn import load_model_params
 from type4py.predict import compute_types_score
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
-from type4py.utils import create_tmp_file
+from type4py.utils import create_tmp_file, load_model_params
 from libsa4py import PY_BUILTINS_MOD, PY_TYPING_MOD, PY_COLLECTION_MOD
 from libsa4py.cst_extractor import Extractor
 from libsa4py.representations import ModuleInfo

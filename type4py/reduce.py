@@ -4,7 +4,7 @@ NOTE THAT the reduced version of type clusters causes a slight performance loss 
 """
 
 from type4py import logger, KNN_TREE_SIZE
-from type4py.learn import load_model_params
+from type4py.utils import load_model_params
 from annoy import AnnoyIndex
 from sklearn.decomposition import PCA
 from os.path import join

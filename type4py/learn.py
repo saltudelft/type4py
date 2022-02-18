@@ -1,7 +1,7 @@
 from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model
 from type4py.vectorize import AVAILABLE_TYPES_NUMBER, W2V_VEC_LENGTH
 from type4py.eval import eval_type_embed
-from type4py.utils import load_json
+from type4py.utils import load_model_params
 from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from torch.utils.data import DataLoader
 from typing import Tuple
@@ -19,14 +19,6 @@ import pkg_resources
 
 logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def load_model_params(params_file_path: str=None) -> dict:
-
-    if params_file_path is not None:
-        logger.info("Loading user-provided hyper-parameters for the Type4Py model...")
-        return load_json(params_file_path)
-    else:
-        return load_json(pkg_resources.resource_filename(__name__, 'model_params.json'))
 
 class Type4Py(nn.Module):
     """

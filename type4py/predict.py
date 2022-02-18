@@ -1,5 +1,5 @@
 from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
-from type4py.learn import load_model_params, TripletModel, create_knn_index
+from type4py.utils import load_model_params
 from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from libsa4py.utils import save_json
 from typing import Tuple, List
