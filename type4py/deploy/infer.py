@@ -4,7 +4,6 @@ This module loads the pre-trained Type4Py model to infer type annotations for a 
 
 from typing import List, Optional, Tuple
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
-from type4py.predict import compute_types_score
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
 from type4py.utils import create_tmp_file, load_model_params
@@ -21,6 +20,7 @@ from libcst import parse_module
 from annoy import AnnoyIndex
 from os.path import basename, join, splitext, dirname
 from argparse import ArgumentParser
+from collections import defaultdict
 from enum import Enum
 from gensim.models import Word2Vec
 from tqdm import tqdm
@@ -97,6 +97,18 @@ class PretrainedType4Py:
     # def load_type_clusters(self):
     #     self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
     #     self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
+
+
+def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
+        types_dist = 1 / (np.array(types_dist) + 1e-10) ** 2
+        types_dist /= np.sum(types_dist)
+        types_score = defaultdict(int)
+        for n, d in zip(types_idx, types_dist):
+            types_score[types_embed_labels[n]] += d
+        
+        return sorted({t: s for t, s in types_score.items()}.items(), key=lambda kv: kv[1],
+                      reverse=True)
+
 
 def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> ModuleInfo:
     """

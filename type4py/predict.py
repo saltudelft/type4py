@@ -1,9 +1,9 @@
 from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
+from type4py.deploy.infer import compute_types_score
 from type4py.utils import load_model_params
 from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from libsa4py.utils import save_json
 from typing import Tuple, List
-from collections import defaultdict
 from os.path import join
 from time import time
 from torch.utils.data import DataLoader
@@ -18,16 +18,6 @@ import torch
 
 logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
-        types_dist = 1 / (np.array(types_dist) + 1e-10) ** 2
-        types_dist /= np.sum(types_dist)
-        types_score = defaultdict(int)
-        for n, d in zip(types_idx, types_dist):
-            types_score[types_embed_labels[n]] += d
-        
-        return sorted({t: s for t, s in types_score.items()}.items(), key=lambda kv: kv[1],
-                      reverse=True)
 
 def predict_type_embed(types_embed_array: np.array, types_embed_labels: np.array, 
                        indexed_knn: AnnoyIndex, k: int) -> List[dict]:

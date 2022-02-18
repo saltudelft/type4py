@@ -2,11 +2,10 @@ from flask import render_template, request, Blueprint, session, jsonify, Respons
 from type4py.server import IS_T4PY_DOCKER_MODE
 from type4py.server.app import app
 from type4py.server.response import PredictResponse, AcceptTypeResponse, is_session_id_valid
-from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
+from type4py.deploy.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
 from datetime import datetime
 from secrets import token_urlsafe
 import json
-import os
 
 bp = Blueprint('type4py_api', __name__, template_folder='templates', url_prefix="/api/")
 
