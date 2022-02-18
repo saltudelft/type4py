@@ -8,10 +8,9 @@ WORKDIR /type4py/
 COPY . /type4py
 ENV T4PY_DOCKER_MODE="1"
 
-RUN pip install -r requirements.txt
-RUN pip install -r type4py/server/requirements.txt
-
 RUN pip install -e .
+# Web server's required packages
+RUN pip install -r type4py/server/requirements.txt
 
 # Install NLTK corpus
 RUN python -c "import nltk; nltk.download('stopwords')"
