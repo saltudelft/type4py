@@ -4,10 +4,12 @@ WORKDIR /type4py/
 # Put the required models files in a folder "t4py_model_files" inside "/type4py"
 # -type4py/
 # --type4py/
-# ---t4py_model_files/
+# --t4py_model_files/
 COPY . /type4py
 ENV T4PY_DOCKER_MODE="1"
 
+# The current model files are pickled with the below ver. of sklearn
+RUN pip install scikit-learn==0.24.1
 RUN pip install -e .
 # Web server's required packages
 RUN pip install -r type4py/server/requirements.txt
