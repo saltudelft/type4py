@@ -21,9 +21,11 @@ it is essential to de-duplicate the dataset by using a tool like [CD4Py](https:/
 
 # Installation Guide
 ## Requirements
-- Linux-based OS
-- Python 3.5 or newer
-- An NVIDIA GPU with CUDA support
+Here are the recommended system requirements for training Type4Py on the MT4Py dataset:
+- Linux-based OS (Ubuntu 18.04 or newer)
+- Python 3.6 or newer
+- A high-end NVIDIA GPU (w/ at least 8GB of VRAM)
+- A CPU with 16 threads or higher (w/ at least 64GB of RAM)
 
 ## Quick Install
 ```
