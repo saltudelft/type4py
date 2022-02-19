@@ -10,6 +10,10 @@ ENV T4PY_DOCKER_MODE="1"
 
 # The current model files are pickled with the below ver. of sklearn
 RUN pip install scikit-learn==0.24.1
+
+# Install Annoy w/ latest fixes to avoid weird SIGILL error on some systems
+RUN git clone https://github.com/mir-am/annoy.git && cd annoy && pip install . && cd .. && rm -rf annoy
+
 RUN pip install -e .
 # Web server's required packages
 RUN pip install -r type4py/server/requirements.txt
