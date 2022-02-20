@@ -1,5 +1,6 @@
 # Type4Py: Deep Similarity Learning-Based Type Inference for Python
 ![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/type4py_server_test.yaml/badge.svg)
+![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/publish_type4py_docker_img.yaml/badge.svg)
 
 This repository contains the implementation of Type4Py and instructions for re-producing the results of the paper.
 
@@ -8,6 +9,7 @@ This repository contains the implementation of Type4Py and instructions for re-p
 - [Usage Guide](#usage-guide)
 - [Converting Type4Py to ONNX](#converting-type4py-to-onnx)
 - [VSCode Extension](#vscode-extension)
+- [Using Local Pre-trained Model](#using-local-pre-trained-model)
 - [Type4Py Server](#type4py-server)
 - [Citing Type4Py](#citing-type4py)
 
@@ -116,6 +118,9 @@ Description:
 [![vsm-version](https://img.shields.io/visual-studio-marketplace/v/saltud.type4py?style=flat&label=VS%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=saltud.type4py)
 
 Type4Py can be used in VSCode, which provides ML-based type auto-completion for Python files. The Type4Py's VSCode extension can be installed from the VS Marketplace [here](https://marketplace.visualstudio.com/items?itemName=saltud.type4py).
+
+# Using Local Pre-trained Model
+Type4Py's pre-trained model can be queried locally by using provided Docker images. See [here](https://github.com/saltudelft/type4py/wiki/Type4Py's-Local-Model) for usage info.
 
 # Type4Py Server
 ![GH Workflow](https://github.com/saltudelft/type4py/actions/workflows/.github/workflows/type4py_server_test.yaml/badge.svg)
