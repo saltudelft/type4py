@@ -1,7 +1,8 @@
-from flask import render_template, request, Blueprint, session, jsonify
+from flask import render_template, request, Blueprint, session, jsonify, Response
+from type4py.server import IS_T4PY_DOCKER_MODE
 from type4py.server.app import app
 from type4py.server.response import PredictResponse, AcceptTypeResponse, is_session_id_valid
-from type4py.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
+from type4py.deploy.infer import PretrainedType4Py, type_annotate_file, get_type_checked_preds
 from datetime import datetime
 from secrets import token_urlsafe
 import json
@@ -15,7 +16,8 @@ def load_type4py_model():
     global t4py_pretrained_m
     t4py_pretrained_m = PretrainedType4Py(app.config['MODEL_PATH'],
                                           app.config['DEVICE'],
-                                          app.config['PRE_READ_TYPE_CLUSTER'])
+                                          app.config['PRE_READ_TYPE_CLUSTER'],
+                                          IS_T4PY_DOCKER_MODE)
     t4py_pretrained_m.load_pretrained_model()
 
 @app.before_request
@@ -74,6 +76,10 @@ def submit_accepted_types():
     """
     Stores accepted types from the VSCode based on users' consent.
     """
+
+    if IS_T4PY_DOCKER_MODE:
+        return Response(response="Telemetry is not supported when running the Type4Py server inside Docker", status=405)
+
     if is_session_id_valid(request.args.get('sid')):
         app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} {int(request.args.get('cp'))} | sess: {request.args.get('sid')}")
         return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 

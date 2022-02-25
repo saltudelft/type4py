@@ -1,14 +1,15 @@
 from type4py.data_loaders import select_data, TripletDataset, load_training_data_per_model, load_test_data_per_model
-from type4py.learn import load_model_params, TripletModel, create_knn_index
+from type4py.deploy.infer import compute_types_score
+from type4py.utils import load_model_params
 from type4py import logger, MIN_DATA_POINTS, KNN_TREE_SIZE
 from libsa4py.utils import save_json
 from typing import Tuple, List
-from collections import defaultdict
 from os.path import join
 from time import time
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from annoy import AnnoyIndex
+from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 import pickle
@@ -17,16 +18,6 @@ import torch
 
 logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
-        types_dist = 1 / (np.array(types_dist) + 1e-10) ** 2
-        types_dist /= np.sum(types_dist)
-        types_score = defaultdict(int)
-        for n, d in zip(types_idx, types_dist):
-            types_score[types_embed_labels[n]] += d
-        
-        return sorted({t: s for t, s in types_score.items()}.items(), key=lambda kv: kv[1],
-                      reverse=True)
 
 def predict_type_embed(types_embed_array: np.array, types_embed_labels: np.array, 
                        indexed_knn: AnnoyIndex, k: int) -> List[dict]:
@@ -104,7 +95,7 @@ def build_type_clusters(model, train_data_loader: DataLoader, valid_data_loader:
     annoy_idx.build(KNN_TREE_SIZE)
     return annoy_idx, np.array(computed_embed_labels) #np.hstack(computed_embed_labels)
 
-def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, np.array]:
+def compute_type_embed_batch(model, data_loader: DataLoader, pca: PCA =None) -> Tuple[np.array, np.array]:
     """
     Compute type embeddings for the whole dataset
     """
@@ -116,42 +107,55 @@ def compute_type_embed_batch(model, data_loader: DataLoader) -> Tuple[np.array, 
         model.eval()
         with torch.no_grad():
             output_a = model(*(s.to(DEVICE) for s in a[0]))
-            computed_embed_batches.append(output_a.data.cpu().numpy())
+            output_a = output_a.data.cpu().numpy()
+            computed_embed_batches.append(pca.transform(output_a) if pca is not None else output_a)
             computed_embed_labels.append(a[1].data.cpu().numpy())
 
     return np.vstack(computed_embed_batches), np.hstack(computed_embed_labels)
 
-def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None):
+def test(output_path: str, data_loading_funcs: dict, type_vocab_limit: int=None, use_tc_reduced: bool=False):
 
     logger.info(f"Testing Type4Py model")
     logger.info(f"**********************************************************************")
-    # Loading dataset
-    logger.info("Loading train and test sets...")
     
     # Model's hyper parameters
     model_params = load_model_params()
-    train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
-                                                                        model_params['batches_test'], train_mode=False)
-
     model = torch.load(join(output_path, f"type4py_{data_loading_funcs['name']}_model.pt"))
-    logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
-    logger.info(f"Type4Py's trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     type_vocab = pd.read_csv(join(output_path, '_most_frequent_all_types.csv')).head(type_vocab_limit if type_vocab_limit is not None else -1)
     type_vocab = set(le_all.transform(type_vocab['type'].values))
+    logger.info(f"Loaded the pre-trained Type4Py {data_loading_funcs['name']} model")
+    logger.info(f"Type4Py's trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
-    annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader, type_vocab)
-    logger.info("Created type clusters")
+    annoy_index: AnnoyIndex = None
+    pca_transform: PCA = None
+    embed_labels: np.array = None
 
-    annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster"))
-    np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"), embed_labels)
-    logger.info("Saved type clusters")
+    if not use_tc_reduced:
+        # Loading dataset
+        logger.info("Loading train and valid sets")
+        train_data_loader, valid_data_loader = load_training_data_per_model(data_loading_funcs, output_path,
+                                                                            model_params['batches_test'], train_mode=False)
 
+        annoy_index, embed_labels = build_type_clusters(model.model, train_data_loader, valid_data_loader, type_vocab)
+        logger.info("Created type clusters")
+
+        annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster"))
+        np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"), embed_labels)
+        logger.info("Saved type clusters")
+    else:
+        logger.info("Loading the reduced type clusters")
+        pca_transform = pickle.load(open(join(output_path, "type_clusters_pca.pkl"), 'rb'))
+        embed_labels = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"))
+        annoy_index = AnnoyIndex(pca_transform.n_components_, 'euclidean')
+        annoy_index.load(join(output_path, "type4py_complete_type_cluster_reduced"))
+    
+    logger.info("Loading test set")
     test_data_loader, t_idx = load_test_data_per_model(data_loading_funcs, output_path, model_params['batches_test'])
     logger.info("Mapping test samples to type clusters")
-    test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_data_loader)
-    
+
+    test_type_embed, embed_test_labels = compute_type_embed_batch(model.model, test_data_loader, pca_transform)
+
     # Perform KNN search and predict
     logger.info("Performing KNN search")
     

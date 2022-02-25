@@ -7,6 +7,15 @@ import time
 import logging
 import os
 import json
+import pkg_resources
+
+def load_model_params(params_file_path: str=None) -> dict:
+
+    if params_file_path is not None:
+        logger.info("Loading user-provided hyper-parameters for the Type4Py model...")
+        return load_json(params_file_path)
+    else:
+        return load_json(pkg_resources.resource_filename(__name__, 'model_params.json'))
 
 def filter_directory(directory: str, extension: str = '.py') -> str:
         """

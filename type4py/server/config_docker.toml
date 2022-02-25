@@ -1,0 +1,12 @@
+# This is the configuration for Docker mode
+MODEL_PATH = "/type4py/t4py_model_files/"
+RATE_LIMIT = false
+PRE_READ_TYPE_CLUSTER = false
+MAX_LOC = 1000
+DEVICE = "cpu"
+APP_SECRET_KEY = ""
+
+# Database
+DB_NAME = ""
+DB_USER = ""
+DB_PASS = ""

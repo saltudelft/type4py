@@ -1,6 +1,6 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from type4py import logger, AVAILABLE_TYPES_NUMBER, MAX_PARAM_TYPE_DEPTH
+from type4py import logger, AVAILABLE_TYPES_NUMBER, MAX_PARAM_TYPE_DEPTH, AVAILABLE_TYPE_APPLY_PROB
 from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns, create_dataframe_vars
 from libsa4py.cst_transformers import ParametricTypeDepthReducer
 from libsa4py.cst_lenient_parser import lenient_parse_module
@@ -13,6 +13,7 @@ from tqdm import tqdm
 import regex
 import os
 import pickle
+import random
 import pandas as pd
 import numpy as np
 
@@ -183,10 +184,10 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
             arg_descr = literal_eval(row['arg_descrs'])[p_i]
             arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])[p_i]]
             other_args = " ".join([a for a in literal_eval(row['arg_names']) if a != 'self'])
-            arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur])
+            arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur, row['aval_types']])
 
     return pd.DataFrame(arguments, columns=['file', 'func_name', 'func_descr', 'arg_name', 'arg_type', 'arg_comment', 'other_args',
-                                            'arg_occur'])
+                                            'arg_occur', 'aval_types'])
 
 def filter_return_dp(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -262,9 +263,11 @@ def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024) ->
     return df
 
 def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.DataFrame,
-                      df_aval_types: pd.DataFrame):
+                      df_aval_types: pd.DataFrame, apply_rvth: bool=False):
     """
-    It encodes the type of parameters and return according to visible type hints
+    It encodes the type of parameters and return according to visible type hints.
+    apply_rvth: bool, In production, there are no visible type hints (VTHs) available as the user's code may not have type annotations.
+                      Therefore, the model needs to learn from a training set where there are not VTHs available at least half of the time.
     """
 
     types = df_aval_types['Types'].tolist()
@@ -272,17 +275,24 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.D
     def trans_aval_type(x):
         for i, t in enumerate(types):
             if x in t:
-                return i
+                if not apply_rvth or random.random() > AVAILABLE_TYPE_APPLY_PROB:
+                    return i
         return len(types) - 1
 
-    # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
-    df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
-    df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
-    df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
+    if not apply_rvth:
+        # If the arg type doesn't exist in top_n available types, we insert n + 1 into the vector as it represents the other type.
+        df_param['param_aval_enc'] = df_param['arg_type'].progress_apply(trans_aval_type)
+        df_ret['ret_aval_enc'] = df_ret['return_type'].progress_apply(trans_aval_type)
+        df_var['var_aval_enc'] = df_var['var_type'].progress_apply(trans_aval_type)
+    else:
+        logger.info(f"Encoding available type hints with a probability of {AVAILABLE_TYPE_APPLY_PROB:.2f}")
+        df_param['param_aval_enc'] = df_param['aval_types'].progress_apply(lambda x: trans_aval_type(x))
+        df_ret['ret_aval_enc'] = df_ret['aval_types'].progress_apply(lambda x: trans_aval_type(x))
+        df_var['var_aval_enc'] = df_var['aval_types'].progress_apply(lambda x: trans_aval_type(x))
 
     return df_param, df_ret
 
-def preprocess_ext_fns(output_dir: str, limit: int = None):
+def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: bool = False):
     """
     Applies preprocessing steps to the extracted functions
     """
@@ -392,12 +402,13 @@ def preprocess_ext_fns(output_dir: str, limit: int = None):
         logger.info("Using visible type hints")
         processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
                                                                           processed_proj_vars,
-                                                                          pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER))
+                                                                          pd.read_csv(join(output_dir, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER),
+                                                                          apply_random_vth)
     else:
         logger.info("Using naive available type hints")
         df_types = gen_most_frequent_avl_types(os.path.join(output_dir, "extracted_visible_types"), output_dir, AVAILABLE_TYPES_NUMBER)
         processed_proj_fns_params, processed_proj_fns = encode_aval_types(processed_proj_fns_params, processed_proj_fns,
-                                                                        processed_proj_vars, df_types)
+                                                                        processed_proj_vars, df_types, apply_random_vth)
 
     # Split parameters and returns type dataset by file into a train and test sets
     df_params_train = processed_proj_fns_params[processed_proj_fns_params['file'].isin(train_files.to_numpy().flatten())]

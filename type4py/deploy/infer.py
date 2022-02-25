@@ -3,14 +3,10 @@ This module loads the pre-trained Type4Py model to infer type annotations for a 
 """
 
 from typing import List, Optional, Tuple
-from torch._C import dtype
 from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
-from type4py.learn import load_model_params
-from type4py.data_loaders import to_numpy
-from type4py.predict import compute_types_score
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
-from type4py.utils import create_tmp_file
+from type4py.utils import create_tmp_file, load_model_params
 from libsa4py import PY_BUILTINS_MOD, PY_TYPING_MOD, PY_COLLECTION_MOD
 from libsa4py.cst_extractor import Extractor
 from libsa4py.representations import ModuleInfo
@@ -24,6 +20,7 @@ from libcst import parse_module
 from annoy import AnnoyIndex
 from os.path import basename, join, splitext, dirname
 from argparse import ArgumentParser
+from collections import defaultdict
 from enum import Enum
 from gensim.models import Word2Vec
 from tqdm import tqdm
@@ -32,31 +29,22 @@ import numpy as np
 import pickle
 import os
 import regex
-import torch
 import onnxruntime
 
 logger.name = __name__
-#DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 OUTPUT_FILE_SUFFIX = "_type4py_typed.py"
 ALL_PY_TYPES = set(list(PY_BUILTINS_MOD) + list(PY_COLLECTION_MOD) + list(PY_TYPING_MOD))
 
 class PretrainedType4Py:
-    # def __init__(self, type4py_model, type4py_model_params, w2v_model, type_clusters_idx,
-    #              type_clusers_labels, label_enc):
-    #     self.type4py_model = type4py_model
-    #     self.type4py_model_params = type4py_model_params
-    #     self.w2v_model = w2v_model
-    #     self.type_clusters_idx = type_clusters_idx
-    #     self.type_clusters_labels = type_clusers_labels
-    #     self.label_enc = label_enc
-
-    def __init__(self, pre_trained_model_path, device='gpu', pre_read_type_cluster=False):
+    def __init__(self, pre_trained_model_path, device='gpu', pre_read_type_cluster=False, use_pca=False):
         self.pre_trained_model_path = pre_trained_model_path
-        self.pre_read_type_cluster = pre_read_type_cluster
         self.device = device
-
+        self.pre_read_type_cluster = pre_read_type_cluster
+        self.use_pca = use_pca
+        
         self.type4py_model = None
         self.type4py_model_params = None
+        self.type4py_pca = None
         self.w2v_model = None
         self.type_clusters_idx = None
         self.type_clusters_labels = None
@@ -64,68 +52,63 @@ class PretrainedType4Py:
         self.vths = None
 
     def load_pretrained_model(self):
-        #self.type4py_model = torch.load(join(self.pre_trained_model_path, f"type4py_complete_model.pt"))
-        self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"))
         self.type4py_model_params = load_model_params()
-        logger.info(f"Loaded the pre-trained Type4Py model")
         
         if self.device == 'gpu':
-            self.type4py_model.set_providers(['CUDAExecutionProvider'])
+            self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"),
+                                                              providers=['CUDAExecutionProvider'])
             logger.info("The model runs on GPU")
         elif self.device == 'cpu':
-            self.type4py_model.set_providers(['CPUExecutionProvider'])
+            self.type4py_model = onnxruntime.InferenceSession(join(self.pre_trained_model_path, f"type4py_complete_model.onnx"),
+                                                              providers=['CPUExecutionProvider'])
             logger.info("The model runs on CPU")
+
+        if self.use_pca:
+            self.type4py_pca = pickle.load(open(join(self.pre_trained_model_path, "type_clusters_pca.pkl"), 'rb'))
+            logger.info("Using PCA transformation")
+        logger.info(f"Loaded the pre-trained Type4Py model")
 
         self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
         logger.info(f"Loaded the pre-trained W2V model")
 
-        # self.vths = pd.read_csv(join(self.pre_trained_model_path, 'MT4Py_VTHs.csv')).head(AVAILABLE_TYPES_NUMBER)
-        # self.vths = self.vths['Types'].to_list()
-
-        self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
-        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"),
+        self.type_clusters_idx = AnnoyIndex(self.type4py_pca.n_components_ if self.use_pca else self.type4py_model_params['output_size'],
+                                            'euclidean')
+        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster_reduced" if self.use_pca else "type4py_complete_type_cluster"),
                                     prefault=self.pre_read_type_cluster)
         self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
         self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
         logger.info(f"Loaded the Type Clusters")
 
-    def load_pretrained_model_wo_clusters(self):
-        self.type4py_model = torch.load(join(self.pre_trained_model_path, f"type4py_complete_model.pt"))
-        self.type4py_model_params = load_model_params()
-        logger.info(f"Loaded the pre-trained Type4Py model")
+    # TODO: These two methods may not be needed in the future.
+    # def load_pretrained_model_wo_clusters(self):
+    #     self.type4py_model = torch.load(join(self.pre_trained_model_path, f"type4py_complete_model.pt"))
+    #     self.type4py_model_params = load_model_params()
+    #     logger.info(f"Loaded the pre-trained Type4Py model")
 
-        self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
-        logger.info(f"Loaded the pre-trained W2V model")
+    #     self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
+    #     logger.info(f"Loaded the pre-trained W2V model")
 
-        # self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
-        # self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
-        self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
-        self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
-        #logger.info(f"Loaded the Type Clusters")
+    #     # self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
+    #     # self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
+    #     self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
+    #     self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
+    #     #logger.info(f"Loaded the Type Clusters")
 
-    def load_type_clusters(self):
-        self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
-        self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
+    # def load_type_clusters(self):
+    #     self.type_clusters_idx = AnnoyIndex(self.type4py_model_params['output_size'], 'euclidean')
+    #     self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster"))
 
-# def load_pretrained_model(pre_trained_model_path):
-#     """
-#     Loads the pre-trained Type4Py model, type clusters and other required files for inference
-#     """
 
-#     model = torch.load(join(pre_trained_model_path, f"type4py_complete_model.pt"))
-#     model_params = load_model_params()
-#     logger.info(f"Loaded the pre-trained Type4Py model")
+def compute_types_score(types_dist: list, types_idx: list, types_embed_labels: np.array):
+        types_dist = 1 / (np.array(types_dist) + 1e-10) ** 2
+        types_dist /= np.sum(types_dist)
+        types_score = defaultdict(int)
+        for n, d in zip(types_idx, types_dist):
+            types_score[types_embed_labels[n]] += d
+        
+        return sorted({t: s for t, s in types_score.items()}.items(), key=lambda kv: kv[1],
+                      reverse=True)
 
-#     w2v_model = Word2Vec.load(join(pre_trained_model_path, 'w2v_token_model.bin'))
-#     logger.info(f"Loaded the pre-trained W2V model")
-
-#     type_cluster_index = AnnoyIndex(model_params['output_size'], 'euclidean')
-#     type_cluster_index.load(join(pre_trained_model_path, "type4py_complete_type_cluster"))
-#     types_embed_labels = np.load(join(pre_trained_model_path, f"type4py_complete_true.npy"))
-#     le_all = pickle.load(open(join(pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
-#     logger.info(f"Loaded the Type Clusters")
-
-#     return PretrainedType4Py(model, model_params, w2v_model, type_cluster_index, types_embed_labels, le_all)
 
 def analyze_src_f(src_f: str, remove_preexisting_type_annot:bool=False) -> ModuleInfo:
     """
@@ -153,17 +136,7 @@ def type_embed_single_dp(model: onnxruntime.InferenceSession, id_dp, code_tks_dp
                      model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False),
                      model.get_inputs()[2].name: vth_dp.astype(np.float32, copy=False)}
 
-    
-    # model_inputs =  {model.get_inputs()[0].name: to_numpy(id_dp),
-    #                  model.get_inputs()[1].name: to_numpy(code_tks_dp),
-    #                  model.get_inputs()[2].name: to_numpy(vth_dp)}
-    # model_inputs =  {model.get_inputs()[0].name: id_dp.astype(np.float32, copy=False),
-    #                  model.get_inputs()[1].name: code_tks_dp.astype(np.float32, copy=False)}
     return model.run(None, model_inputs)[0]
-
-    # model.eval()
-    # with torch.no_grad():
-    #     return model(*(i.to(DEVICE) for i in input_tensor)).data.cpu().numpy().reshape(-1,1)
 
 def infer_single_dp(type_cluster_idx: AnnoyIndex, k:int, types_embed_labels:np.array,
                     type_embed_vec: np.array):
@@ -172,36 +145,6 @@ def infer_single_dp(type_cluster_idx: AnnoyIndex, k:int, types_embed_labels:np.a
     """
     idx, dist = type_cluster_idx.get_nns_by_vector(type_embed_vec, k, include_distances=True)
     return compute_types_score(dist, idx, types_embed_labels)
-
-# def var2vec(var_name: str, var_occur: str, w2v_model, type4py_model) -> np.array:
-#     """
-#     Converts a variable to its type embedding
-#     """
-#     df_var = pd.DataFrame([[var_name, var_occur, AVAILABLE_TYPES_NUMBER-1]],
-#                           columns=['var_name', 'var_occur', 'var_aval_enc'])
-#     id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
-
-#     id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
-
-#     code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
-#                                 row.var_occur, None, None), axis=1)
-#     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
-#     vth_dp = np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
-#                                         axis=1), axis=0)
-
-#     # id_dp = df_var.apply(lambda row: IdentifierSequence(w2v_model, None, None, None, row.var_name), axis=1)
-
-#     # id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
-#     #                         axis=0)).float()
-
-#     # code_tks_dp = df_var.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
-#     #                             row.var_occur, None, None), axis=1)
-#     # code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
-#     # vth_dp = torch.from_numpy(np.stack(df_var.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.var_aval_enc),
-#     #                                     axis=1), axis=0)).float()
-    
-#     #return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
-#     return id_dp, code_tks_dp, vth_dp
 
 def var2vec(vars_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array, np.array]:
     """
@@ -220,40 +163,6 @@ def var2vec(vars_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array,
                                         axis=1), axis=0)
 
     return id_dp, code_tks_dp, vth_dp
-
-# def param2vec(w2v_model, type4py_model, *param_hints) -> np.array:
-#     """
-#     Converts a function argument to its type embedding
-#     """
-#     # TODO: Fix VTH encoding
-#     df_param = pd.DataFrame([[p for p in param_hints] + [AVAILABLE_TYPES_NUMBER-1]],
-#                           columns=['func_name', 'arg_name', 'other_args', 'arg_occur', 'param_aval_enc'])
-
-#     id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
-#                                                           row.func_name, None), axis=1)
-
-#     id_dp = np.stack(id_dp.apply(lambda x: x.generate_datapoint()), axis=0)
-
-#     code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
-#                                                            row.arg_occur, None, None), axis=1)
-#     code_tks_dp = np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)
-#     vth_dp = np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
-#                                         axis=1), axis=0)
-
-#     # id_dp = df_param.apply(lambda row: IdentifierSequence(w2v_model, row.arg_name, row.other_args,
-#     #                                                       row.func_name, None), axis=1)
-
-#     # id_dp = torch.from_numpy(np.stack(id_dp.apply(lambda x: x.generate_datapoint()),
-#     #                         axis=0)).float()
-
-#     # code_tks_dp = df_param.apply(lambda row: TokenSequence(w2v_model, TOKEN_SEQ_LEN[0], TOKEN_SEQ_LEN[1],
-#     #                                                        row.arg_occur, None, None), axis=1)
-#     # code_tks_dp = torch.from_numpy(np.stack(code_tks_dp.apply(lambda x: x.generate_datapoint()), axis=0)).float()
-#     # vth_dp = torch.from_numpy(np.stack(df_param.apply(lambda row: type_vector(AVAILABLE_TYPES_NUMBER, row.param_aval_enc),
-#     #                                     axis=1), axis=0)).float()
-
-#     #return type_embed_single_dp(type4py_model, id_dp, code_tks_dp, vth_dp)
-#     return id_dp, code_tks_dp, vth_dp
 
 def param2vec(params_type_hints: List[list], w2v_model) -> Tuple[np.array, np.array, np.array]:
     """
@@ -373,9 +282,12 @@ def get_type_preds_single_file(src_f_ext:dict, all_type_slots: Tuple[list], all_
         vth_dps = np.concatenate(tuple(vth_dps))
     else:
         id_dps, code_tks_dps, vth_dps = id_dps[0], code_tks_dps[0], vth_dps[0]
-     
-    for i, ts_preds in enumerate(infer_preds_score(type_embed_single_dp(pre_trained_m.type4py_model, id_dps,
-                                                                        code_tks_dps, vth_dps))):
+    
+    preds = type_embed_single_dp(pre_trained_m.type4py_model, id_dps, code_tks_dps, vth_dps)
+    if pre_trained_m.use_pca:
+        preds = pre_trained_m.type4py_pca.transform(preds)
+
+    for i, ts_preds in enumerate(infer_preds_score(preds)):
         all_type_slots[i][0][all_type_slots[i][1]] = ts_preds
 
     return src_f_ext
@@ -606,99 +518,6 @@ def type_check_inferred_types(src_f_ext: dict, src_f_read: str, src_f_o_path):
     
     #apply_inferred_types(src_f_read, src_f_ext, src_f_o_path)
     return report_type_check_preds(preds_type_checked)
-
-# def get_type_checked_preds(src_f_ext: dict, src_f_read: str, src_f_o_path):
-#     mypy_tc = MypyManager('mypy', 20)
-
-
-#     for m_v, m_v_t in tqdm(src_f_ext['variables'].items()):
-#         # The predictions for module-level vars
-#         mod_vars_p = []   
-#         for p, s in src_f_ext['variables_p'][m_v]:
-#             logger.info(f"Annotating module-level variable {m_v} with {p}")
-#             src_f_ext['variables'][m_v] = p
-#             is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, m_v_t)
-#             if is_tc:
-#                 mod_vars_p.append((p, s))
-#         src_f_ext['variables_p'][m_v] = mod_vars_p
-#         src_f_ext['variables'][m_v] = m_v_t
-            
-#     for i, fn in tqdm(enumerate(src_f_ext['funcs']), total=len(src_f_ext['funcs']), desc="[module][funcs]"):
-#         for p_n, p_t in fn['params'].items():
-#             # The predictions for arguments for module-level functions
-#             for p, s in fn['params_p'][p_n]:
-#                 logger.info(f"Annotating function parameter {p_n} with {p}")
-#                 src_f_ext['funcs'][i]['params'][p_n] = p
-#                 is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, p_t)
-#                 if not is_tc:
-#                     src_f_ext['funcs'][i]['params'][p_n] = p_t
-
-#         # The predictions local variables for module-level functions
-#         for fn_v, fn_v_t in fn['variables'].items():
-#             for p, s in fn['variables_p'][fn_v]:
-#                 logger.info(f"Annotating function variable {fn_v} with {p}")
-#                 src_f_ext['funcs'][i]['variables'][fn_v] = p
-#                 is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, fn_v_t)
-#                 preds_type_checked.append((is_tc, p_type))
-#                 if not is_tc:
-#                     src_f_ext['funcs'][i]['variables'][fn_v] = fn_v_t
-            
-#         # The return type for module-level functions
-#         if src_f_ext['funcs'][i]['ret_exprs'] != []:
-#             org_t = src_f_ext['funcs'][i]['ret_type']
-#             for p, s in src_f_ext['funcs'][i]['ret_type_p']:
-#                 logger.info(f"Annotating function {src_f_ext['funcs'][i]['name']} return with {p}")
-#                 src_f_ext['funcs'][i]['ret_type'] = p
-#                 is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, org_t)
-#                 preds_type_checked.append((is_tc, p_type))
-#                 if not is_tc:
-#                     src_f_ext['funcs'][i]['ret_type'] = org_t
-
-#     # The type of class-level vars
-#     for c_i, c in tqdm(enumerate(src_f_ext['classes']), total=len(src_f_ext['classes']), desc="[module][classes]"):
-#         for c_v, c_v_t in c['variables'].items():
-#             for p, s in c['variables_p'][c_v]:
-#                 logger.info(f"Annotating class variable {c_v} with {p}")
-#                 src_f_ext['classes'][c_i]['variables'][c_v] = p
-#                 is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, c_v_t)
-#                 preds_type_checked.append((is_tc, p_type))
-#                 if not is_tc:
-#                     src_f_ext['classes'][c_i]['variables'][c_v] = c_v_t
-
-#         # The type of arguments for class-level functions
-#         for fn_i, fn in enumerate(c['funcs']):
-#             for p_n, p_t in fn["params"].items():
-#                 for p, s in fn["params_p"][p_n]:
-#                     logger.info(f"Annotating function parameter {p_n} with {p}")
-#                     src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][p_n] = p
-#                     is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, p_t)
-#                     preds_type_checked.append((is_tc, p_type))
-#                     if not is_tc:
-#                         src_f_ext['classes'][c_i]['funcs'][fn_i]['params'][p_n] = p_t
-
-#             # The type of local variables for class-level functions
-#             for fn_v, fn_v_t in fn['variables'].items():
-#                 for p, s in fn['variables_p'][fn_v]:
-#                     logger.info(f"Annotating function variable {fn_v} with {p}")
-#                     src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = p
-#                     is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, fn_v_t)
-#                     preds_type_checked.append((is_tc, p_type))
-#                     if not is_tc:
-#                         src_f_ext['classes'][c_i]['funcs'][fn_i]['variables'][fn_v] = fn_v_t
-
-#             # The return type for class-level functions
-#             if src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_exprs'] != []:
-#                 org_t = src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type']
-#                 for p, s in src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type_p']:
-#                     logger.info(f"Annotating function {src_f_ext['classes'][c_i]['funcs'][fn_i]['name']} return with {p}")
-#                     src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = p
-#                     is_tc, p_type = type_check_pred(src_f_read, src_f_o_path, src_f_ext, mypy_tc, p, org_t)
-#                     preds_type_checked.append((is_tc, p_type))
-#                     if not is_tc:
-#                         src_f_ext['classes'][c_i]['funcs'][fn_i]['ret_type'] = org_t
-    
-#     #apply_inferred_types(src_f_read, src_f_ext, src_f_o_path)
-#     return report_type_check_preds(preds_type_checked)
 
 # def get_type_slots_preds_file(source_file_path: str) -> list:
 

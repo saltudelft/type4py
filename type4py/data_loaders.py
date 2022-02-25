@@ -30,7 +30,7 @@ def load_combined_train_data(output_path: str):
            torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'train', 'params_train_aval_types_dp.npy')),
                       load_data_tensors_TW(join(output_path, 'vectors', 'train', 'ret_train_aval_types_dp.npy')),
                       load_data_tensors_TW(join(output_path, 'vectors', 'train', 'var_train_aval_types_dp.npy'))))
-
+   
 def load_combined_valid_data(output_path: str):
     return torch.cat((load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_param_valid_datapoints_x.npy')),
                       load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_ret_valid_datapoints_x.npy')),
@@ -234,7 +234,7 @@ def select_data(data, n):
     return mask
 
 def load_training_data_per_model(data_loading_funcs: dict, output_path: str,
-                                 no_batches: int, train_mode:bool=True,
+                                 no_batches: int, train_mode:bool=True, load_valid_data:bool=True,
                                  no_workers:int=8) -> Tuple[DataLoader, DataLoader]:
     """
     Loads appropriate training data based on the model's type
@@ -308,31 +308,46 @@ def load_training_data_per_model(data_loading_funcs: dict, output_path: str,
     else:
         # Complete model
         X_id_train, X_tok_train, X_type_train = data_loading_funcs['train'](output_path)
-        X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
-        Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
+        if load_valid_data:
+            Y_all_train, Y_all_valid, _ = data_loading_funcs['labels'](output_path)
+        else:
+            Y_all_train, _, _ = data_loading_funcs['labels'](output_path)
 
         train_mask = select_data(Y_all_train, MIN_DATA_POINTS)
-        X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
-                    X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
-
-        valid_mask = select_data(Y_all_valid, MIN_DATA_POINTS)
-        X_id_valid, X_tok_valid, X_type_valid, Y_all_valid = X_id_valid[valid_mask], \
-                    X_tok_valid[valid_mask], X_type_valid[valid_mask], Y_all_valid[valid_mask]
+       
+        X_id_train = X_id_train[train_mask]
+        X_tok_train = X_tok_train[train_mask]
+        X_type_train = X_type_train[train_mask]
+        Y_all_train = Y_all_train[train_mask]
+       
+        # X_id_train, X_tok_train, X_type_train, Y_all_train = X_id_train[train_mask], \
+        #             X_tok_train[train_mask], X_type_train[train_mask], Y_all_train[train_mask]
 
         triplet_data_train = TripletDataset(X_id_train, X_tok_train, X_type_train, labels=Y_all_train,
                                       dataset_name=data_loading_funcs['name'], train_mode=train_mode)
-        triplet_data_valid = TripletDataset(X_id_valid, X_tok_valid, X_type_valid, labels=Y_all_valid,
+
+        logger.info(f"Loaded train set of the {data_loading_funcs['name']} dataset in {(time()-load_data_t)/60:.2f} min")
+        
+        if load_valid_data:
+            X_id_valid, X_tok_valid, X_type_valid = data_loading_funcs['valid'](output_path)
+            valid_mask = select_data(Y_all_valid, MIN_DATA_POINTS)
+            X_id_valid = X_id_valid[valid_mask]
+            X_tok_valid = X_tok_valid[valid_mask]
+            X_type_valid = X_type_valid[valid_mask]
+            Y_all_valid = Y_all_valid[valid_mask]
+            triplet_data_valid = TripletDataset(X_id_valid, X_tok_valid, X_type_valid, labels=Y_all_valid,
                                             dataset_name=data_loading_funcs['name'],
                                             train_mode=train_mode)
-
-
-    logger.info(f"Loaded train and valid sets of the {data_loading_funcs['name']} dataset in {(time()-load_data_t)/60:.2f} min")
+            logger.info(f"Loaded valid set of the {data_loading_funcs['name']} dataset")
 
     train_loader = DataLoader(triplet_data_train, batch_size=no_batches, shuffle=True,
                               pin_memory=True, num_workers=no_workers)
-    valid_loader = DataLoader(triplet_data_valid, batch_size=no_batches, num_workers=no_workers)
 
-    return train_loader, valid_loader
+    if load_valid_data:
+        valid_loader = DataLoader(triplet_data_valid, batch_size=no_batches, num_workers=no_workers)
+        return train_loader, valid_loader
+    else:
+        return train_loader, None
 
 def load_test_data_per_model(data_loading_funcs: dict, output_path: str,
                              no_batches: int, drop_last_batch:bool=False):
