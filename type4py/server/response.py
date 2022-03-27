@@ -21,7 +21,7 @@ class PredictResponse:
     def log2db(self):
         if not IS_T4PY_DOCKER_MODE:
             dbm.sqla.session.add(dbm.PredictReqs(sha1(get_remote_address().encode()).hexdigest(), session.get("act_id"),
-                                             session.get("session_id"), session['file_hash'], session.get("req_start_t"),
+                                             session.get("session_id"), session.get('file_hash'), session.get("req_start_t"),
                                              datetime.now(), session.get('error'), self.response, session.get("ext_ver")))
             dbm.sqla.session.commit()
 
