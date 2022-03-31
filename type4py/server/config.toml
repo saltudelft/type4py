@@ -1,10 +1,11 @@
-MODEL_PATH = "/home/amir/MT4Py_typed_full/type4py_pretrained/"
+MODEL_PATH = "/home/amir/MT4Py_typed_full/type4py_pretrained_n/"
 RATE_LIMIT = false
 PRE_READ_TYPE_CLUSTER = false
 MAX_LOC = 1000
 DEVICE = "gpu"
 
 # Database
-DB_NAME =
-DB_USER = 
-DB_PASS = 
+DB_ADDR = ""
+DB_NAME = ""
+DB_USER = ""
+DB_PASS = ""

@@ -1,23 +1,37 @@
-from type4py.server import IS_T4PY_DOCKER_MODE
+from type4py.server import IS_T4PY_LOCAL_MODE
 from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
-from os import getenv
+from os import getenv, environ
 import toml
 import secrets
 
 app = Flask(__name__)
 
-if getenv("FLASK_ENV") == "development":
-    app.config.from_file("config_dev.toml", load=toml.load)
-elif IS_T4PY_DOCKER_MODE:
+# Read default config values
+if IS_T4PY_LOCAL_MODE:
     app.config.from_file("config_docker.toml", load=toml.load)
-    app.config['APP_SECRET_KEY'] = secrets.token_urlsafe(16)
+    app.logger.info("Running the Type4Py server in local mode")
 else:
     app.config.from_file("config.toml", load=toml.load)
+    app.logger.info(f"Running the Type4Py server in {'production' if getenv('FLASK_ENV') is None else 'development'} mode...")
+    # Read DB credentials
+    if set(['T4Py_DB_ADDR', 'T4Py_DB_NAME', 'T4Py_DB_USER', 'T4Py_DB_PASS']).issubset(environ):
+        app.config['DB_ADDR'] = getenv('T4Py_DB_ADDR')
+        app.config['DB_NAME'] = getenv('T4Py_DB_NAME')
+        app.config['DB_USER'] = getenv('T4Py_DB_USER')
+        app.config['DB_PASS'] = getenv('T4Py_DB_PASS')
+    else:
+        raise RuntimeError("DB credentials not provided!")
 
-app.secret_key = app.config['APP_SECRET_KEY']
+# Overrides the default value of model's path and device provided in the config file
+if getenv("T4Py_MODEL_PATH") is not None:
+    app.config['MODEL_PATH'] = getenv("T4Py_MODEL_PATH")
+if getenv("T4Py_DEVICE") is not None:
+    app.config['DEVICE'] = getenv("T4Py_DEVICE")
+
+app.secret_key = secrets.token_urlsafe(16)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 if app.config['RATE_LIMIT']:
