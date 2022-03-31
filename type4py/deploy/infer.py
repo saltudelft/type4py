@@ -71,7 +71,7 @@ class PretrainedType4Py:
         self.w2v_model = Word2Vec.load(join(self.pre_trained_model_path, 'w2v_token_model.bin'))
         logger.info(f"Loaded the pre-trained W2V model")
 
-        self.type_clusters_idx = AnnoyIndex(self.type4py_pca.n_components_ if self.use_pca else self.type4py_model_params['output_size'],
+        self.type_clusters_idx = AnnoyIndex(self.type4py_pca.n_components_ if self.use_pca else self.type4py_model_params['output_size_prod'],
                                             'euclidean')
         self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster_reduced" if self.use_pca else "type4py_complete_type_cluster"),
                                     prefault=self.pre_read_type_cluster)
