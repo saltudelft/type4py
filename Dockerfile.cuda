@@ -15,7 +15,7 @@ RUN apt update --fix-missing -y && apt upgrade -y && apt install -y python3-pip 
 RUN pip install scikit-learn==0.24.1
 
 # Install Annoy from a pre-built binary wheel to avoid weird SIGILL error on some systems
-RUN pip install https://type4py.com/pretrained_models/annoy-1.17.0-cp39-cp39-linux_x86_64.whl
+RUN pip install https://type4py.com/pretrained_models/annoy-wheels/annoy-1.17.0-cp38-cp38-linux_x86_64.whl
 
 # For production env., install ONNXRuntime with GPU support
 RUN pip install onnx==1.10 onnxruntime==1.10 onnxruntime-gpu==1.10
