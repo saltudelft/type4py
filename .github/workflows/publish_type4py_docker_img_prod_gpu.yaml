@@ -1,0 +1,34 @@
+name: Docker Build Production - GPU
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Parse version info from tag
+        run: |
+          # GITHUB_REF is like refs/tags/v2.3.5, so strip the first 11 chars
+          VERSION=${GITHUB_REF:11}
+          echo "version=$VERSION" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Build Docker image and push to ghcr.io
+        run: |
+          IMG=ghcr.io/${{ github.repository }}.prod.gpu
+          docker build \
+            --tag $IMG:${{ env.version }} \
+            --tag $IMG:latest \
+            -f Dockerfile.cuda \
+            .
+          docker push --all-tags $IMG
