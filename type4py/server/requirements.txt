@@ -3,5 +3,4 @@ gunicorn[gevent]
 Flask-Limiter
 flask-sqlalchemy
 Flask-Migrate
-supervisor
 psycopg2
