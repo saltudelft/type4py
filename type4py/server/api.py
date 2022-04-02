@@ -78,7 +78,7 @@ def submit_accepted_types():
     """
 
     if IS_T4PY_LOCAL_MODE:
-        return Response(response="Telemetry is not supported when running the Type4Py server inside Docker", status=405)
+        return Response(response="Telemetry is not supported when running the Type4Py server in the local mode", status=405)
 
     if is_session_id_valid(request.args.get('sid')):
         app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} {int(request.args.get('cp'))} | sess: {request.args.get('sid')}")
