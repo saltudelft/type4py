@@ -8,13 +8,12 @@ import toml
 import secrets
 
 app = Flask(__name__)
+app.config.from_file("config.toml", load=toml.load)
 
 # Read default config values
 if IS_T4PY_LOCAL_MODE:
-    app.config.from_file("config_docker.toml", load=toml.load)
     app.logger.info("Running the Type4Py server in local mode")
 else:
-    app.config.from_file("config.toml", load=toml.load)
     app.logger.info(f"Running the Type4Py server in {'production' if getenv('FLASK_ENV') is None else 'development'} mode...")
     # Read DB credentials
     if set(['T4Py_DB_ADDR', 'T4Py_DB_NAME', 'T4Py_DB_USER', 'T4Py_DB_PASS']).issubset(environ):
