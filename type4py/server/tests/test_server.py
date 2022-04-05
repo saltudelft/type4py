@@ -1,10 +1,9 @@
-from locale import NOEXPR
-from libsa4py.utils import read_file, load_json
 from typing import Dict, List, Tuple
 import unittest
+
+from utils import read_file, load_json
 import requests
 import pytest
-
 
 class TestPredictEndpoint(unittest.TestCase):
     """
@@ -18,6 +17,8 @@ class TestPredictEndpoint(unittest.TestCase):
     def __set_env(self, pytestconfig):
         if pytestconfig.getoption("env") == 'dev':
             self.TYPE4PY_PRED_EP = "https://dev.type4py.com/api/predict?tc=0"
+        elif pytestconfig.getoption("env") == 'local':
+            self.TYPE4PY_PRED_EP = "http://localhost:5001/api/predict?tc=0"
         else:
             self.TYPE4PY_PRED_EP = "https://type4py.com/api/predict?tc=0"
 
