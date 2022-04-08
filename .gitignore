@@ -4,3 +4,5 @@ __pycache__
 *.pyc
 *.pyo
 *.egg-info/
+migrations/
+t4py_model_files/
