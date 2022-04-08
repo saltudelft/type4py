@@ -29,11 +29,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GH_TOKEN }}
 
-      - name: Build Docker image and push to ghcr.io
+      - name: Build Docker image
         run: |
           IMG=ghcr.io/${{ github.repository }}
           docker build \
             --tag $IMG:${{ env.version }} \
             --tag $IMG:latest \
             .
+      - name: Run Docker image
+        run: |
+          IMG=ghcr.io/${{ github.repository }}
+          docker run -d -p 5001:5010 $IMG
+          
+      - name: Perform integration test
+        run: |
+          pip install pytest requests
+          cd ./type4py/server/tests/ && pytest test_local_server.py --env "local" && cd -
+
+      - name: Push Docker image to ghcr.io
+        run: |
+          IMG=ghcr.io/${{ github.repository }}
           docker push --all-tags $IMG

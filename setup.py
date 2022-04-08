@@ -10,7 +10,7 @@ with open('requirements.txt') as f:
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-if "T4PY_DOCKER_MODE" in environ:
+if "T4PY_LOCAL_MODE" in environ:
     required_deps.remove("torch")
 
 setup(

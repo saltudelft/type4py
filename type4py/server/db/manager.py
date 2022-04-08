@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from enum import Enum
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{app.config['DB_USER']}:{app.config['DB_PASS']}@localhost:5432/{app.config['DB_NAME']}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{app.config['DB_USER']}:{app.config['DB_PASS']}@{app.config['DB_ADDR']}:5432/{app.config['DB_NAME']}"
 sqla = SQLAlchemy(app)
 mig = Migrate(app, sqla)
 

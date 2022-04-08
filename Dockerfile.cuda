@@ -1,0 +1,39 @@
+# NOTE: This Docker file is configured to deploy Type4Py on our server and GPUs.
+# For us, these configs seem to work: CUDA 11.0.3, ONNX v1.10.0, nvidia driver 450.36.06
+FROM nvidia/cuda:11.0.3-cudnn8-runtime-ubuntu20.04
+WORKDIR /type4py/
+# Put the required models files in a folder "t4py_model_files" inside "/type4py"
+# -type4py/
+# --type4py/
+# --t4py_model_files/
+COPY . /type4py
+ENV T4PY_LOCAL_MODE="1"
+
+RUN apt update --fix-missing -y && apt upgrade -y && apt install -y python3-pip libpq-dev
+
+# The current model files are pickled with the below ver. of sklearn
+RUN pip install scikit-learn==0.24.1
+
+# Install Annoy from a pre-built binary wheel to avoid weird SIGILL error on some systems
+RUN pip install https://type4py.com/pretrained_models/annoy-wheels/annoy-1.17.0-cp38-cp38-linux_x86_64.whl
+
+# For production env., install ONNXRuntime with GPU support
+RUN pip install onnx==1.10 onnxruntime==1.10 onnxruntime-gpu==1.10
+
+# Install Type4Py
+RUN pip install -e .
+
+# Web server's required packages
+RUN pip install -r type4py/server/requirements.txt
+
+# Install NLTK corpus
+RUN python3 -c "import nltk; nltk.download('stopwords')"
+RUN python3 -c "import nltk; nltk.download('wordnet')"
+RUN python3 -c "import nltk; nltk.download('omw-1.4')"
+RUN python3 -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+
+WORKDIR /type4py/type4py/server/
+
+EXPOSE 5010
+
+CMD ["bash", "run_server.sh"]
