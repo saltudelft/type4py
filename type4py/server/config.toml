@@ -1,10 +1,14 @@
-MODEL_PATH = "/home/amir/MT4Py_typed_full/type4py_pretrained/"
+# By default, model's path points to the local model in the Docker image
+# It can be overriden by providing an ENV. variable T4Py_MODEL_PATH
+MODEL_PATH = "/type4py/t4py_model_files/"
 RATE_LIMIT = false
 PRE_READ_TYPE_CLUSTER = false
 MAX_LOC = 1000
-DEVICE = "gpu"
+DEVICE = "cpu"
 
-# Database
-DB_NAME =
-DB_USER = 
-DB_PASS = 
+# Database credentials are provided by passing ENV. variables
+# The local model does not need a DB connection.
+DB_ADDR = ""
+DB_NAME = ""
+DB_USER = ""
+DB_PASS = ""
