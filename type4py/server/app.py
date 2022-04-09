@@ -3,6 +3,10 @@ from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.serving import run_simple
+from prometheus_client import make_wsgi_app
+from flask_prometheus_metrics import register_metrics
 from os import getenv, environ
 import toml
 import secrets
@@ -31,6 +35,7 @@ if getenv("T4Py_DEVICE") is not None:
     app.config['DEVICE'] = getenv("T4Py_DEVICE")
 
 app.secret_key = secrets.token_urlsafe(16)
+app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 if app.config['RATE_LIMIT']:
@@ -43,3 +48,7 @@ from type4py.server.api import bp
 app.register_blueprint(bp)
 
 from type4py.server.error_handlers import *
+
+register_metrics(app, app_version="v0.1.3", app_config="staging")
+#dispatcher = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
+#run_simple(hostname="localhost", port=5011, application=dispatcher)

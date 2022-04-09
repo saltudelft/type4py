@@ -4,3 +4,4 @@ Flask-Limiter
 flask-sqlalchemy
 Flask-Migrate
 psycopg2
+flask_prometheus_metrics
