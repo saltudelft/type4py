@@ -39,8 +39,8 @@ data_loading_var = {'train': data_loaders.load_var_train_data, 'valid': data_loa
 
 def extract(args):
     p = Pipeline(args.c, args.o, True, False, args.d)
-    p.run(find_repos_list(args.c), args.w)
-
+    p.run(find_repos_list(args.c) if args.l is None else find_repos_list(args.c)[:args.l], args.w)
+    
 def preprocess(args):
     from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
