@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from os import path, environ
 from type4py import __version__
 
@@ -35,7 +35,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
     keywords='deep learning type inference prediction similarity learning python source code type4py',
-    packages=['type4py'],
+    packages=find_packages(),
     python_requries='>=3.6',
     install_requires=required_deps,
     entry_points={
