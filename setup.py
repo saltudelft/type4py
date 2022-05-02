@@ -36,6 +36,7 @@ setup(
     ],
     keywords='deep learning type inference prediction similarity learning python source code type4py',
     packages=find_packages(),
+    package_data={'type4py': ['model_params.json']},
     python_requries='>=3.6',
     install_requires=required_deps,
     entry_points={
