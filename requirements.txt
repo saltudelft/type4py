@@ -7,3 +7,4 @@ torch
 libsa4py
 onnx
 onnxruntime
+pandarallel
