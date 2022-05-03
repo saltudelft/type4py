@@ -3,13 +3,16 @@ from sklearn.preprocessing import LabelEncoder
 from type4py import logger, AVAILABLE_TYPES_NUMBER, MAX_PARAM_TYPE_DEPTH, AVAILABLE_TYPE_APPLY_PROB
 from libsa4py.merge import merge_jsons_to_dict, create_dataframe_fns, create_dataframe_vars
 from libsa4py.cst_transformers import ParametricTypeDepthReducer
+from libsa4py.cst_visitor import CountParametricTypeDepth
 from libsa4py.cst_lenient_parser import lenient_parse_module
 from libsa4py.utils import list_files
+from libcst import parse_module, ParserSyntaxError
 from typing import Tuple
 from ast import literal_eval
 from collections import Counter
 from os.path import exists, join
 from tqdm import tqdm
+from pandarallel import pandarallel
 import regex
 import os
 import pickle
@@ -19,6 +22,7 @@ import numpy as np
 
 logger.name = __name__
 tqdm.pandas()
+pandarallel.initialize(progress_bar=True)
 
 # Precompile often used regex
 first_cap_regex = regex.compile('(.)([A-Z][a-z]+)')
@@ -81,7 +85,7 @@ def resolve_type_aliasing(df_param: pd.DataFrame, df_ret: pd.DataFrame,
 
     df_param['arg_type'] = df_param['arg_type'].progress_apply(resolve_type_alias)
     df_ret['return_type'] = df_ret['return_type'].progress_apply(resolve_type_alias)
-    df_vars['var_type'] = df_vars['var_type'].progress_apply(resolve_type_alias)
+    df_vars['var_type'] = df_vars['var_type'].parallel_apply(resolve_type_alias)
 
     return df_param, df_ret, df_vars
 
@@ -90,11 +94,8 @@ def preprocess_parametric_types(df_param: pd.DataFrame, df_ret: pd.DataFrame,
     """
     Reduces the depth of parametric types
     """
-    from libcst import parse_module, ParserSyntaxError
-    global s
-    s = 0
+    
     def reduce_depth_param_type(t: str) -> str:
-        global s
         if regex.match(r'.+\[.+\]', t):
             try:
                 t = parse_module(t)
@@ -107,14 +108,17 @@ def preprocess_parametric_types(df_param: pd.DataFrame, df_ret: pd.DataFrame,
                     s += 1
                     return t.code
                 except ParserSyntaxError:
-                    return None
+                    return ""
+                except Exception:
+                    return ""
+            except Exception:
+                return ""
         else:
             return t
 
-    df_param['arg_type'] = df_param['arg_type'].progress_apply(reduce_depth_param_type)
-    df_ret['return_type'] = df_ret['return_type'].progress_apply(reduce_depth_param_type)
-    df_vars['var_type'] = df_vars['var_type'].progress_apply(reduce_depth_param_type)
-    logger.info(f"Sucssesfull lenient parsing {s}")
+    df_param['arg_type'] = df_param['arg_type'].parallel_apply(reduce_depth_param_type)
+    df_ret['return_type'] = df_ret['return_type'].parallel_apply(reduce_depth_param_type)
+    df_vars['var_type'] = df_vars['var_type'].parallel_apply(reduce_depth_param_type)
 
     return df_param, df_ret, df_vars
 
@@ -165,29 +169,31 @@ def gen_argument_df(df: pd.DataFrame) -> pd.DataFrame:
     :param df: dataframe for which to extract argument
     :return: argument dataframe
     """
-    arguments = []
-    for i, row in tqdm(df.iterrows(), total=len(df.index), desc="Processing arguments"):
-        for p_i, arg_name in enumerate(literal_eval(row['arg_names'])):
+    from multiprocessing import Manager
+    with Manager() as m:
+        arguments = m.list()
+        def preprocess_arguments(row):
+            for p_i, arg_name in enumerate(literal_eval(row['arg_names'])):
+                # Ignore self arg
+                if arg_name == 'self':
+                    continue
 
-            # Ignore self arg
-            if arg_name == 'self':
-                continue
+                arg_type = literal_eval(row['arg_types'])[p_i].strip('\"')
 
-            arg_type = literal_eval(row['arg_types'])[p_i].strip('\"')
+                # Ignore Any or None types
+                # TODO: Ignore also object type
+                # TODO: Ignore Optional[Any]
+                if arg_type == '' or arg_type in {'Any', 'None', 'object'}:
+                    continue
 
-            # Ignore Any or None types
-            # TODO: Ignore also object type
-            # TODO: Ignore Optional[Any]
-            if arg_type == '' or arg_type in {'Any', 'None', 'object'}:
-                continue
-
-            arg_descr = literal_eval(row['arg_descrs'])[p_i]
-            arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])[p_i]]
-            other_args = " ".join([a for a in literal_eval(row['arg_names']) if a != 'self'])
-            arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur, row['aval_types']])
-
-    return pd.DataFrame(arguments, columns=['file', 'func_name', 'func_descr', 'arg_name', 'arg_type', 'arg_comment', 'other_args',
-                                            'arg_occur', 'aval_types'])
+                arg_descr = literal_eval(row['arg_descrs'])[p_i]
+                arg_occur = [a.replace('self', '').strip() if 'self' in a.split() else a for a in literal_eval(row['args_occur'])[p_i]]
+                other_args = " ".join([a for a in literal_eval(row['arg_names']) if a != 'self'])
+                arguments.append([row['file'], row['name'], row['func_descr'], arg_name, arg_type, arg_descr, other_args, arg_occur, row['aval_types']])
+        
+        df.parallel_apply(preprocess_arguments, axis=1)
+        return pd.DataFrame(list(arguments), columns=['file', 'func_name', 'func_descr', 'arg_name', 'arg_type', 'arg_comment', 'other_args',
+                                                'arg_occur', 'aval_types'])
 
 def filter_return_dp(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -292,6 +298,19 @@ def encode_aval_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_var: pd.D
 
     return df_param, df_ret
 
+def sanity_check_param_types(df_param: pd.DataFrame, df_ret: pd.DataFrame, df_vars: pd.DataFrame, max_depth: int=2):
+    """
+    A sanity-check for the depth of parametric types.
+    """
+    def count_param_type_depth(param_type: str) -> int:
+        cptd_visitor = CountParametricTypeDepth()
+        parse_module(param_type).visit(cptd_visitor)
+        return cptd_visitor.type_annot_depth
+
+    assert (df_param['arg_type'].apply(count_param_type_depth) > max_depth).any() == False
+    assert [df_ret['return_type'].apply(count_param_type_depth) > max_depth].any() == False
+    assert [df_vars['var_type'].apply(count_param_type_depth) > max_depth].any() == False
+  
 def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: bool = False):
     """
     Applies preprocessing steps to the extracted functions
@@ -364,6 +383,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: boo
     processed_proj_fns = filter_functions(processed_proj_fns)
     
     # Extracts type hints for functions' arguments
+    logger.info("Preprocessing functions' arguemnts")
     processed_proj_fns_params = gen_argument_df(processed_proj_fns)
 
     # Filters out functions: (1) without a return type (2) with the return type of Any or None (3) without a return expression
@@ -383,6 +403,8 @@ def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: boo
     processed_proj_fns_params, processed_proj_fns, processed_proj_vars = preprocess_parametric_types(processed_proj_fns_params,
                                                                                                      processed_proj_fns,
                                                                                                      processed_proj_vars)
+    #sanity_check_param_types(processed_proj_fns_params, processed_proj_fns, processed_proj_vars, MAX_PARAM_TYPE_DEPTH)
+    
     # Exclude variables without a type
     processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
