@@ -132,10 +132,11 @@ Also, please feel free to reach out to us for deployment, using the pre-trained 
 # Citing Type4Py
 
 ```
-@article{mir2021type4py,
-  title={Type4Py: Deep Similarity Learning-Based Type Inference for Python},
-  author={Mir, Amir M and Latoskinas, Evaldas and Proksch, Sebastian and Gousios, Georgios},
-  journal={arXiv preprint arXiv:2101.04470},
-  year={2021}
+@inproceedings{mir2022type4py,
+  title={Type4Py: practical deep similarity learning-based type inference for python},
+  author={Mir, Amir M and Lato{\v{s}}kinas, Evaldas and Proksch, Sebastian and Gousios, Georgios},
+  booktitle={Proceedings of the 44th International Conference on Software Engineering},
+  pages={2241--2252},
+  year={2022}
 }
 ```
