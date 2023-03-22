@@ -15,7 +15,7 @@ data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': da
 
 data_loading_comb_sep = {'train': data_loaders.load_combined_train_data_split, 'valid': data_loaders.load_combined_valid_data_split,
                      'test': data_loaders.load_combined_test_data, 'labels': data_loaders.load_combined_labels_split,
-                     'name': 'complete_sep'}
+                     'name': 'complete'}
 
 data_loading_woi = {'train': data_loaders.load_combined_train_data_woi, 'valid': data_loaders.load_combined_valid_data_woi,
                      'test': data_loaders.load_combined_test_data_woi, 'labels': data_loaders.load_combined_labels, 
@@ -68,10 +68,10 @@ def learn(args):
         train(args.o, data_loading_comb, args.p, args.v)
 
 def learn_split(args):
-    from type4py.learn import train
+    from type4py.learn_split import train_split
     setup_logs_file(args.o, "learn_sep")
     if args.c:
-        train(args.o, data_loading_comb_sep, args.p, args.v)
+        train_split(args.o, data_loading_comb_sep, args.dt, args.p, args.v)
 
 def predict(args):
     from type4py.predict import test
@@ -145,6 +145,8 @@ def main():
     learning_parser_sep = sub_parsers.add_parser('learn_sep')
     learning_parser_sep.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     learning_parser_sep.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
+    learning_parser_sep.add_argument('--dt', '--datatype', required=True, type=str,
+                                     help="Datatype for training phase")
     learning_parser_sep.add_argument('--p', '--parameters', required=False, type=str,
                                  help="Path to the JSON file of model's hyper-parameters")
     learning_parser_sep.add_argument('--v', '--validation', default=False, action="store_true",
