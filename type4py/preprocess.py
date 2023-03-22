@@ -219,6 +219,12 @@ def format_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame, df_vars: pd.DataFrame,
                      output_dir: str):
+
+    # add filtering the null types before encoding
+    df_ret = df_ret.drop(df_ret[df_ret['return_type'].isnull()].index)
+    df_params = df_params.drop(df_params[df_params['arg_type'].isnull()].index)
+    df_vars = df_vars.drop(df_vars[df_vars['var_type'].isnull()].index)
+
     all_types = np.concatenate((df_ret['return_type'].values, df_params['arg_type'].values,
                                 df_vars['var_type'].values), axis=0)
     le_all = LabelEncoder()

@@ -13,6 +13,13 @@ tqdm.pandas()
 
 W2V_VEC_LENGTH = 100
 
+class EmdTypeError(Exception):
+    pass
+
+class EmdTypeNotFound(EmdTypeError):
+    def __init__(self):
+        super().__init__("Embedding Type not found!")
+
 class TokenIterator:
     def __init__(self, param_df: pd.DataFrame, return_df: pd.DataFrame,
                  var_df: pd.DataFrame) -> None:
@@ -224,8 +231,24 @@ def process_datapoints(df, output_path, embedding_type, type, trans_func, cached
     if not os.path.exists(os.path.join(output_path, embedding_type + type + '_datapoints_x.npy')) or not cached_file:
         datapoints = df.apply(trans_func, axis=1)
 
-        datapoints_X = np.stack(datapoints.progress_apply(lambda x: x.generate_datapoint()),
-                                axis=0)
+        # optimize np.stack for datapoints in batches when handling large datasets
+        batch_size = 1000
+        num_rows = datapoints.shape[0]
+
+        if embedding_type == "identifiers_":
+            emd_shape = 31
+        elif embedding_type == "tokens_":
+            emd_shape = TOKEN_SEQ_LEN[0]*TOKEN_SEQ_LEN[1]
+        else:
+            raise EmdTypeNotFound
+
+        datapoints_X = np.empty((num_rows, emd_shape, W2V_VEC_LENGTH))
+        for i in range(0, num_rows, batch_size):
+            start_idx = i
+            end_idx = min(i + batch_size, num_rows)
+            batch = datapoints.iloc[start_idx:end_idx]
+            datapoints_X[start_idx:end_idx, :, :] = np.stack(batch.progress_apply(lambda x: x.generate_datapoint()),
+                                                             axis=0)
         np.save(os.path.join(output_path, embedding_type + type + '_datapoints_x'), datapoints_X)
 
         return datapoints_X
