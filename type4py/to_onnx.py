@@ -1,7 +1,7 @@
 """
 Converts the pre-trained Type4Py model to ONNX
 """
-
+import os.path
 from os.path import join
 from type4py import logger
 from type4py.data_loaders import to_numpy
@@ -17,7 +17,16 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def type4py_to_onnx(args):
-    type4py_model = torch.load(join(args.o, "type4py_complete_model.pt")).model
+
+    if os.path.exists(join(args.o, "type4py_complete_model.pt")):
+        logger.info("Loading the pre-trained Type4Py model")
+        type4py_model = torch.load(join(args.o, "type4py_complete_model.pt")).model
+    elif os.path.exists(join(args.o, "type4py_complete_model_var_param_return.pt")):
+        logger.info("Loading the pre-trained Type4Py model")
+        type4py_model = torch.load(join(args.o, "type4py_complete_model_var_param_return.pt")).model
+    else:
+        raise FileNotFoundError("Type4Py model not found!")
+
     type4py_model.eval()
     logger.info("Loaded the pre-trained Type4Py model")
 

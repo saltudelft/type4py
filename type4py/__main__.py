@@ -85,6 +85,11 @@ def predict(args):
     elif args.c:
         test(args.o, data_loading_comb, args.l, args.rtc)
 
+def gen_cluster(args):
+    from type4py.gen_cluster import gen_cluster
+    setup_logs_file(args.o, "gen_clusters")
+    gen_cluster(args.o, data_loading_comb_sep, args.dt)
+
 def eval(args):
     from type4py.eval import evaluate
     setup_logs_file(args.o, "eval")
@@ -100,7 +105,7 @@ def eval(args):
         evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp, args.mrr)
 
 def infer(args):
-    from type4py.infer import infer_main
+    from type4py.deploy.infer import infer_main
     setup_logs_file(args.m, 'infer')
     infer_main(args.m, args.f)
 
@@ -164,6 +169,13 @@ def main():
     predict_parser.add_argument('--wov', default=False, action="store_true", help="Type4py model w/o visible type hints")
     predict_parser.set_defaults(func=predict)
 
+    # gen type cluster incremental: predict phase
+    predict_parser = sub_parsers.add_parser('gen_clu')
+    predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    predict_parser.add_argument('--dt', '--datatype', required=True, help="Datatype for generating type clusters")
+    predict_parser.set_defaults(func=gen_cluster)
+
+
     # Evaluation phase
     eval_parser = sub_parsers.add_parser('eval')
     eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
@@ -194,6 +206,7 @@ def main():
     reduce_parser = sub_parsers.add_parser('reduce')
     reduce_parser.add_argument("--o", required=True, type=str, help="Path to processed projects")
     reduce_parser.add_argument("--d", default=256, type=int, help="A new dimension for type clusters [Default: 256]")
+    reduce_parser.add_argument("--batch", default=False, action="store_true", help="Reduce type clusters in batches")
     reduce_parser.set_defaults(func=reduce_tc)
 
     args = arg_parser.parse_args()
