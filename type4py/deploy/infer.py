@@ -249,9 +249,9 @@ def get_type_preds_single_file(src_f_ext:dict, all_type_slots: Tuple[list], all_
             preds = infer_single_dp(pre_trained_m.type_clusters_idx, pre_trained_m.type4py_model_params['k'],
                                    pre_trained_m.type_clusters_labels, te)
             if filter_pred_types:
-                type_embeds_preds.append(filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds]))))
+                type_embeds_preds.append(filter_preds(list(zip(list(pre_trained_m.label_enc.inverse_transform([int(p) for p,s in preds])), [s for p,s in preds]))))
             else:
-                type_embeds_preds.append(list(zip(list(pre_trained_m.label_enc.inverse_transform([p for p,s in preds])), [s for p,s in preds])))
+                type_embeds_preds.append(list(zip(list(pre_trained_m.label_enc.inverse_transform([int(p) for p,s in preds])), [s for p,s in preds])))
         
         return type_embeds_preds
 
