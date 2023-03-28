@@ -13,6 +13,7 @@ data_loading_comb = {'train': data_loaders.load_combined_train_data, 'valid': da
                      'test': data_loaders.load_combined_test_data, 'labels': data_loaders.load_combined_labels,
                      'name': 'complete'}
 
+# add split data loading function
 data_loading_comb_sep = {'train': data_loaders.load_combined_train_data_split,
                          'valid': data_loaders.load_combined_valid_data_split,
                          'test': data_loaders.load_combined_test_data,
@@ -77,6 +78,7 @@ def learn(args):
         train(args.o, data_loading_comb, args.p, args.v)
 
 
+# add learn_split function for CLI command "learn_split"
 def learn_split(args):
     from type4py.learn_split import train_split
     setup_logs_file(args.o, "learn_sep")
@@ -97,6 +99,7 @@ def predict(args):
         test(args.o, data_loading_comb, args.l, args.rtc)
 
 
+# add gen_cluster function for CLI command "gen_clu"
 def gen_cluster(args):
     from type4py.gen_cluster import gen_cluster
     setup_logs_file(args.o, "gen_clusters")
@@ -124,6 +127,7 @@ def infer(args):
     infer_main(args.m, args.f)
 
 
+# add projects-based infer function for command "infer_project"
 def infer_project(args):
     from type4py.deploy.infer_project import infer_project_main
     setup_logs_file(args.m, 'infer_project')

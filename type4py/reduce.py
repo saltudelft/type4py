@@ -24,6 +24,7 @@ class TypeClusterNotFound(Exception):
 def reduce_tc(args):
     model_params = load_model_params()
     type_cluster_index = AnnoyIndex(model_params['output_size'], 'euclidean')
+    # check if there is existing type_cluster
     if os.path.exists(join(args.o, "type4py_complete_type_cluster")):
         logger.info("Loading type clusters: type4py_complete_type_cluster")
         type_cluster_index.load(join(args.o, "type4py_complete_type_cluster"))

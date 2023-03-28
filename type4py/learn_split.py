@@ -23,19 +23,24 @@ import pkg_resources
 logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 class ModelNotFit(Exception):
     pass
+
 
 class NotCompleteModel(ModelNotFit):
     def __init__(self):
         super().__init__("learn_split may just fit for complete model!")
 
+
 class TrainedModel(Exception):
     pass
+
 
 class ModelTrainedError(TrainedModel):
     def __init__(self):
         super().__init__("Model has been trained for this dataset!")
+
 
 class Type4Py(nn.Module):
     """
@@ -212,6 +217,7 @@ def compute_validation_loss_dsl(model: TripletModel, criterion, train_valid_load
 
     return valid_total_loss, 0.0
 
+
 def check_pickle_file(type, data_loading_funcs, output_path):
     var_exist = False
     param_exist = False
@@ -227,6 +233,8 @@ def check_pickle_file(type, data_loading_funcs, output_path):
         logger.info(f"find existing {data_loading_funcs['name']}_common_types_ret.pkl file !")
     return var_exist, param_exist, ret_exist
 
+
+# find existing trained model, return trained_types
 def find_existing_model(data_loading_funcs, output_path):
     prefix = f"type4py_{data_loading_funcs['name']}_model"
     suffix = ".pt"
@@ -238,22 +246,27 @@ def find_existing_model(data_loading_funcs, output_path):
             return filename, trained
     return None, None
 
-def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str,  model_params_path=None, validation: bool = False):
+
+def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, model_params_path=None,
+                validation: bool = False):
     logger.info(f"Training Type4Py model")
     logger.info(f"***********************************************************************")
 
     # Model's hyper parameters
     model_params = load_model_params(model_params_path)
+
+    # data loading process based on datatype
     data_type_list = ["var", "param", "ret"]
     if dataset_type not in data_type_list:
         raise ValueError(f"{dataset_type} is not in the default data type list!")
 
-    train_data_loader, valid_data_loader = load_training_data_per_model_sep(data_loading_funcs, output_path,dataset_type,
-                                                                        model_params['batches'],
-                                                                        load_valid_data=validation,
-                                                                        no_workers=cpu_count() // 2)
+    train_data_loader, valid_data_loader = load_training_data_per_model_sep(data_loading_funcs, output_path,
+                                                                            dataset_type,
+                                                                            model_params['batches'],
+                                                                            load_valid_data=validation,
+                                                                            no_workers=cpu_count() // 2)
 
-    # Loading label encoder and finding ubiquitous & common types
+    # Loading label encoder and check existing count_types file
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     count_types = Counter(train_data_loader.dataset.labels.data.numpy())
 
@@ -267,18 +280,22 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str,  
 
     type_filename = dataset_type
 
+    # if find existing types in "var" dataset, load them for updating for final common types
     if var_exists and dataset_type != "var":
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl"), 'rb') as f1:
             count_types_var = pickle.load(f1)
         count_types.update(count_types_var)
+        # also add suffix to filename
         type_filename = type_filename + "_var"
 
+    # if find existing types in "param" dataset, load them for updating for final common types
     if param_exits and dataset_type != "param":
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl"), 'rb') as f2:
             count_types_param = pickle.load(f2)
         count_types.update(count_types_param)
         type_filename = type_filename + "_param"
 
+    # if find existing types in "ret" dataset, load them for updating for final common types
     if ret_exists and dataset_type != "ret":
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl"), 'rb') as f3:
             count_types_ret = pickle.load(f3)
@@ -301,6 +318,7 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str,  
     with open(join(output_path, f"{data_loading_funcs['name']}_common_types_{type_filename}.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
 
+    # get the trained_model name and trained_types
     trained_model_name, trained_types = find_existing_model(data_loading_funcs, output_path)
 
     if trained_types == None:

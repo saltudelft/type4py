@@ -269,6 +269,8 @@ def gen_cluster(output_path: str, data_loading_funcs: dict, datatype: str, type_
         if datatype not in {"var", "param", "ret"}:
             raise DataTypeNotExistError(f"datatype input {datatype} not in [ var, param, ret] list")
 
+        # check existing AnnoyIndex and embedd_labels before generate new
+
         # checking and loading the existing Annoy_Index
         logger.info("Checking the existing AnnoyIndex...")
         cluster_file, processed_type = find_existing_index(data_loading_funcs, output_path)
@@ -292,6 +294,7 @@ def gen_cluster(output_path: str, data_loading_funcs: dict, datatype: str, type_
                                                                                 model_params['batches'])
         logger.info(f"Train and Valid data loaded")
 
+        # generate new anny_index and embed_labels
         annoy_index, embed_labels = build_type_clusters(model.model, output_path, train_data_loader, valid_data_loader, type_vocab,
                                                         cluster_file, embedded_file)
         logger.info("Created type clusters")

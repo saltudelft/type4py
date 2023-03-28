@@ -36,7 +36,7 @@ def load_combined_train_data(output_path: str):
                       load_data_tensors_TW(join(output_path, 'vectors', 'train', 'ret_train_aval_types_dp.npy')),
                       load_data_tensors_TW(join(output_path, 'vectors', 'train', 'var_train_aval_types_dp.npy'))))
 
-
+# load combined train dataset based on datatype
 def load_combined_train_data_split(output_path: str, type: str):
     if type == "var":
         logger.info("Loading Variable set...")
@@ -70,7 +70,7 @@ def load_combined_valid_data(output_path: str):
                       load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'ret_valid_aval_types_dp.npy')),
                       load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'var_valid_aval_types_dp.npy'))))
 
-
+# load combined valid dataset based on datatype
 def load_combined_valid_data_split(output_path: str, type: str):
     if type == "var":
         return load_data_tensors_TW(join(output_path, 'vectors', 'valid', 'identifiers_var_valid_datapoints_x.npy')), \
@@ -115,7 +115,7 @@ def load_combined_labels(output_path: str):
                       load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'ret_test_dps_y_all.npy')),
                       load_flat_labels_tensors(join(output_path, 'vectors', 'test', 'var_test_dps_y_all.npy'))))
 
-
+# load combined labels for dataset
 def load_combined_labels_split(output_path: str, type: str):
     if type == "var":
         return load_data_tensors_TW(join(output_path, 'vectors', 'train', 'var_train_dps_y_all.npy')), \

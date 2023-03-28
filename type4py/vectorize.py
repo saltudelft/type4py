@@ -232,6 +232,9 @@ def process_datapoints(df, output_path, embedding_type, type, trans_func, cached
         datapoints = df.apply(trans_func, axis=1)
 
         # optimize np.stack for datapoints in batches when handling large datasets
+        # emd_shape is based on the "identifiers" and "tokens"
+
+        # define batch sizes and rows for datapoints_x
         batch_size = 1000
         num_rows = datapoints.shape[0]
 
