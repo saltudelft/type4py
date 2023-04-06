@@ -6,6 +6,7 @@ import os.path
 
 from type4py import logger, KNN_TREE_SIZE
 from type4py.utils import load_model_params
+from type4py.exceptions import TypeClusterNotFound
 from annoy import AnnoyIndex
 from sklearn.decomposition import PCA, IncrementalPCA
 from os.path import join
@@ -14,12 +15,6 @@ import numpy as np
 import pickle
 
 logger.name = __name__
-
-
-class TypeClusterNotFound(Exception):
-    def __init__(self):
-        super().__init__("Type clusters not found!")
-
 
 def reduce_tc(args):
     model_params = load_model_params()

@@ -100,10 +100,16 @@ def predict(args):
 
 
 # add gen_cluster function for CLI command "gen_clu"
-def gen_cluster(args):
-    from type4py.gen_cluster import gen_cluster
+def gen_type_cluster(args):
+    from type4py.gen_type_cluster import gen_type_cluster
     setup_logs_file(args.o, "gen_clusters")
-    gen_cluster(args.o, data_loading_comb_sep, args.dt)
+    gen_type_cluster(args.o, data_loading_comb_sep, args.dt)
+
+def predict_split(args):
+    from type4py.predict_split import test_split
+    setup_logs_file(args.o, "predict_sep")
+    if args.c:
+        test_split(args.o, data_loading_comb_sep)
 
 
 def eval(args):
@@ -178,7 +184,7 @@ def main():
     learning_parser.set_defaults(func=learn)
 
     # Learning phase split
-    learning_parser_sep = sub_parsers.add_parser('learn_sep')
+    learning_parser_sep = sub_parsers.add_parser('learns')
     learning_parser_sep.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
     learning_parser_sep.add_argument('--c', '--complete', default=True, action="store_true",
                                      help="Complete Type4Py model")
@@ -204,11 +210,17 @@ def main():
                                 help="Type4py model w/o visible type hints")
     predict_parser.set_defaults(func=predict)
 
-    # gen type cluster incremental: predict phase
-    predict_parser = sub_parsers.add_parser('gen_clu')
-    predict_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    predict_parser.add_argument('--dt', '--datatype', required=True, help="Datatype for generating type clusters")
-    predict_parser.set_defaults(func=gen_cluster)
+    # gen type cluster incremental: predict phase generate type cluster
+    predict_parser_gen_cluster = sub_parsers.add_parser('gen_type_clu')
+    predict_parser_gen_cluster.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    predict_parser_gen_cluster.add_argument('--dt', '--datatype', required=True, help="Datatype for generating type clusters")
+    predict_parser_gen_cluster.set_defaults(func=gen_type_cluster)
+
+    # gen predictions via type cluster: predict phase generate predictions
+    predict_parser_gen_pred = sub_parsers.add_parser('predicts')
+    predict_parser_gen_pred.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    predict_parser_gen_pred.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
+    predict_parser_gen_pred.set_defaults(func=predict_split)
 
     # Evaluation phase
     eval_parser = sub_parsers.add_parser('eval')

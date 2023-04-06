@@ -1,8 +1,9 @@
 from gensim.models import Word2Vec
 from time import time
 from tqdm import tqdm
-from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
+from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN, IDENTIFIER_SEQ_LEN
 from type4py.utils import mk_dir_not_exist
+from type4py.exceptions import EmdTypeNotFound
 import os
 import multiprocessing
 import numpy as np
@@ -13,12 +14,6 @@ tqdm.pandas()
 
 W2V_VEC_LENGTH = 100
 
-class EmdTypeError(Exception):
-    pass
-
-class EmdTypeNotFound(EmdTypeError):
-    def __init__(self):
-        super().__init__("Embedding Type not found!")
 
 class TokenIterator:
     def __init__(self, param_df: pd.DataFrame, return_df: pd.DataFrame,
@@ -239,7 +234,7 @@ def process_datapoints(df, output_path, embedding_type, type, trans_func, cached
         num_rows = datapoints.shape[0]
 
         if embedding_type == "identifiers_":
-            emd_shape = 31
+            emd_shape = IDENTIFIER_SEQ_LEN
         elif embedding_type == "tokens_":
             emd_shape = TOKEN_SEQ_LEN[0]*TOKEN_SEQ_LEN[1]
         else:
