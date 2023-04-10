@@ -52,18 +52,15 @@ def extract(args):
     p = Pipeline(args.c, args.o, True, False, args.d)
     p.run(find_repos_list(args.c) if args.l is None else find_repos_list(args.c)[:args.l], args.w)
 
-
 def preprocess(args):
     from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
     preprocess_ext_fns(args.o, args.l, args.rvth)
 
-
 def vectorize(args):
     from type4py.vectorize import vectorize_args_ret
     setup_logs_file(args.o, "vectorize")
     vectorize_args_ret(args.o)
-
 
 def learn(args):
     from type4py.learn import train
@@ -77,14 +74,12 @@ def learn(args):
     else:
         train(args.o, data_loading_comb, args.p, args.v)
 
-
 # add learn_split function for CLI command "learn_split"
 def learn_split(args):
     from type4py.learn_split import train_split
     setup_logs_file(args.o, "learn_sep")
     if args.c:
         train_split(args.o, data_loading_comb_sep, args.dt, args.p, args.v)
-
 
 def predict(args):
     from type4py.predict import test
@@ -98,7 +93,6 @@ def predict(args):
     elif args.c:
         test(args.o, data_loading_comb, args.l, args.rtc)
 
-
 # add gen_cluster function for CLI command "gen_clu"
 def gen_type_cluster(args):
     from type4py.gen_type_cluster import gen_type_cluster
@@ -110,7 +104,6 @@ def predict_split(args):
     setup_logs_file(args.o, "predict_sep")
     if args.c:
         test_split(args.o, data_loading_comb_sep)
-
 
 def eval(args):
     from type4py.eval import evaluate
@@ -132,13 +125,11 @@ def infer(args):
     setup_logs_file(args.m, 'infer')
     infer_main(args.m, args.f)
 
-
 # add projects-based infer function for command "infer_project"
 def infer_project(args):
     from type4py.deploy.infer_project import infer_project_main
     setup_logs_file(args.m, 'infer_project')
     infer_project_main(args.m, args.p, args.o, args.split)
-
 
 def main():
     arg_parser = argparse.ArgumentParser()
