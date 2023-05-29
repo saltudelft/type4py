@@ -87,3 +87,4 @@ def infer_project_main(model_path, input_path, output_path, split_file):
     t4py_pretrained_m.load_pretrained_model()
 
     infer_projects(t4py_pretrained_m, input_path, output_path, split_file)
+
