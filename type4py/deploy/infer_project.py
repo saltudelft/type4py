@@ -1,3 +1,7 @@
+"""
+This module is for infer projects and output json files based on three approaches:
+type4py, pyre and pyright
+"""
 import os
 from typing import List
 import pandas as pd

@@ -1,3 +1,7 @@
+"""
+This module is for static infer, including pyre infer and pyright infer
+"""
+
 import os
 from pathlib import Path
 import utils.pyre_utils as pyre_util

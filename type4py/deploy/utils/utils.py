@@ -1,3 +1,7 @@
+'''
+This module includes function for rebuild project for pyre infer, clean & mask type annotations
+'''
+
 from libsa4py.cst_visitor import Visitor
 from libsa4py.cst_transformers import TypeAdder, SpaceAdder, StringRemover, CommentAndDocStringRemover, NumberRemover, \
     TypeAnnotationRemover, TypeQualifierResolver
