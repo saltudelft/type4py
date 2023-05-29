@@ -2,6 +2,7 @@ from type4py import data_loaders
 from type4py.to_onnx import type4py_to_onnx
 from type4py.reduce import reduce_tc
 from type4py.utils import setup_logs_file
+from type4py.exceptions import InferApproachNotFound
 from libsa4py.cst_pipeline import Pipeline
 from libsa4py.utils import find_repos_list
 import argparse
@@ -126,10 +127,20 @@ def infer(args):
     infer_main(args.m, args.f)
 
 # add projects-based infer function for command "infer_project"
+'''
+project-based CLI command includes three approaches:
+-t4py : typ4py model
+-hybrid0: typ4py + pyre
+-hybrid1: type4py + pyright
+'''
 def infer_project(args):
-    from type4py.deploy.infer_project import infer_project_main
-    setup_logs_file(args.m, 'infer_project')
-    infer_project_main(args.m, args.p, args.o, args.split)
+    approach_list = {"t4py", "hybrid0", "hybrid1"}
+    if args.a in approach_list:
+        from type4py.deploy.infer_project import infer_project_main
+        setup_logs_file(args.m, 'infer_project')
+        infer_project_main(args.m, args.p, args.o, args.a, args.split)
+    else:
+        raise InferApproachNotFound
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -245,6 +256,8 @@ def main():
                                   help="Path to python projects folder for inference")
     infer_parser_pro.add_argument('--o', '--output', required=True, type=str,
                                   help="Path to store the ml_infer outputs")
+    infer_parser_pro.add_argument('--a', '--approach', required=True, type=str,
+                                  help="infer approach includes ml, hybrid0, hybrid1")
     # split according to dataset_split_repo.csv
     infer_parser_pro.add_argument('--split', '--split_file', required=True, type=str,
                                   help="file to store the split of projects")

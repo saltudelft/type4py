@@ -15,10 +15,15 @@ class ModelTrainedError(TrainedModel):
     def __init__(self):
         super().__init__("Model has been trained for this dataset!")
 
+class ApproachError(Exception):
+    pass
+
+class InferApproachNotFound(ApproachError):
+    def __init__(self):
+        super().__init__("Infer Approach not in t4py, hybrid0, hybrid1!")
 
 class EmdTypeError(Exception):
     pass
-
 
 class EmdTypeNotFound(EmdTypeError):
     def __init__(self):

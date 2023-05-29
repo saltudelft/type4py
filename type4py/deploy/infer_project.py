@@ -8,7 +8,7 @@ from type4py.deploy.infer import PretrainedType4Py, type_annotate_file
 from type4py import logger
 from libsa4py.exceptions import ParseError
 
-from libsa4py.utils import list_files, find_repos_list
+from libsa4py.utils import list_files, find_repos_list, save_json
 from pathlib import Path
 
 def find_test_list(project_dir, dataset_split):
@@ -30,7 +30,7 @@ def find_test_list(project_dir, dataset_split):
         # logger.info(f"dataset_split file: {dataset_split} does not exist!")
         raise FileNotFoundError(f"dataset_split file: {dataset_split} does not exist!")
 
-def infer(repo, model, project_dir, tar_dir):
+def infer(repo, model, project_dir):
     project_author = repo["author"]
     project_name = repo["repo"]
     project_path = os.path.join(project_dir, project_author, project_name)
@@ -64,12 +64,11 @@ def infer(repo, model, project_dir, tar_dir):
                        project_analyzed_files[project_id]["src_files"].keys()]) / len(
                 project_analyzed_files[project_id]["src_files"].keys()), 2)
 
-    processed_file = os.path.join(tar_dir, f"{project_author}{project_name}_mlInfer.json")
-    with open(processed_file, 'w') as json_f:
-        json.dump(project_analyzed_files, json_f, indent=4)
+    return project_analyzed_files
 
 
-def infer_projects(model, project_dir, tar_dir, split_file):
+
+def infer_projects(model, project_dir, tar_dir, approach, split_file):
     if split_file is not None:
         repo_infos_test = find_test_list(project_dir, split_file)
         logger.info(f'Totally find {len(repo_infos_test)} projects in test set')
@@ -78,13 +77,17 @@ def infer_projects(model, project_dir, tar_dir, split_file):
         repo_infos_test = find_repos_list(project_dir)
         logger.info(f'Totally find {len(repo_infos_test)} projects in project dir')
 
-    for repo in tqdm(repo_infos_test):
-        infer(repo, model, project_dir, tar_dir)
+    if approach == "t4py":
+        for repo in tqdm(repo_infos_test):
+            project_author = repo["author"]
+            project_name = repo["repo"]
+            filepath = os.path.join(tar_dir, f"{project_author}{project_name}_mlInfer.json")
+            processed_file = infer(repo, model, project_dir, tar_dir)
+            save_json(filepath, processed_file)
 
 
-def infer_project_main(model_path, input_path, output_path, split_file):
+def infer_project_main(model_path, input_path, output_path, approach, split_file):
     t4py_pretrained_m = PretrainedType4Py(model_path, "gpu", pre_read_type_cluster=False, use_pca=True)
     t4py_pretrained_m.load_pretrained_model()
-
-    infer_projects(t4py_pretrained_m, input_path, output_path, split_file)
+    infer_projects(t4py_pretrained_m, input_path, output_path, approach, split_file)
 
