@@ -102,7 +102,7 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             processed_file = ml_infer(repo, model, project_dir, tar_dir)
             save_json(filepath, processed_file)
 
-    if approach == "hybrid0":
+    if approach == "t4pyre":
         for repo in tqdm(repo_infos_test):
             process1 = multiprocessing.Process(target=run_mlInfer)
             process2 = multiprocessing.Process(target=run_pyreInfer)

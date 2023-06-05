@@ -129,9 +129,9 @@ def infer(args):
 # add projects-based infer function for command "infer_project"
 '''
 project-based CLI command includes three approaches:
--t4py : typ4py model
--hybrid0: typ4py + pyre
--hybrid1: type4py + pyright
+-t4py : type4py model
+-t4pyre: typ4py + pyre
+-t4pyright: type4py + pyright
 '''
 def infer_project(args):
     approach_list = {"t4py", "hybrid0", "hybrid1"}
