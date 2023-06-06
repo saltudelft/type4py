@@ -14,8 +14,9 @@ from libsa4py.exceptions import ParseError
 from libsa4py.utils import list_files, find_repos_list, save_json
 from pathlib import Path
 import multiprocessing
-from type4py.deploy.static_infer import pyre_infer
+from type4py.deploy.static_infer import pyre_infer, pyright_infer
 from type4py.deploy.utils.pyre_merge import merge_pyre
+from type4py.deploy.utils.pyright_merge import merge_pyright
 
 
 ml_queue = multiprocessing.Queue()
@@ -86,6 +87,10 @@ def run_pyreInfer():
     pyre_result = pyre_infer(repo, project_dir)
     pyre_queue.put(pyre_result)
 
+def run_pyrightInfer():
+    pyright_result = pyright_infer(repo, project_dir)
+    pyright_queue.put(pyright_result)
+
 def infer_projects(model, project_dir, tar_dir, approach, split_file):
     if split_file is not None:
         repo_infos_test = find_test_list(project_dir, split_file)
@@ -119,7 +124,27 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             project_name = "".join((repo["author"], repo["repo"]))
             hy_result = merge_pyre(ml_result, sa_result, project_id)
 
-            filepath = os.path.join(tar_dir, f"{project_name}_hybridinfer0.json")
+            filepath = os.path.join(tar_dir, f"{project_name}_t4pyreInfer.json")
+            save_json(filepath, hy_result)
+
+    if approach == "t4pyright":
+        for repo in tqdm(repo_infos_test):
+            process1 = multiprocessing.Process(target=run_mlInfer)
+            process2 = multiprocessing.Process(target=run_pyrightInfer)
+
+            # Start the processes
+            process1.start()
+            process2.start()
+
+            # Get the results from t4py and pyright & merge
+            ml_result = ml_queue.get()
+            sa_result = pyright_queue.get()
+
+            project_id = "/".join((repo["author"], repo["repo"]))
+            project_name = "".join((repo["author"], repo["repo"]))
+            hy_result = merge_pyright(ml_result, sa_result, project_id)
+
+            filepath = os.path.join(tar_dir, f"{project_name}_t4pyrightInfer.json")
             save_json(filepath, hy_result)
 
 def infer_project_main(model_path, input_path, output_path, approach, split_file):

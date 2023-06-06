@@ -6,10 +6,14 @@ import os
 from pathlib import Path
 import utils.pyre_utils as pyre_util
 from utils.utils import rebuild_repo
-from libsa4py.utils import list_files, read_file
+from utils.cst_utils import TypeAnnotationFinder, TypeAnnotationMasker
+from utils.preprocess_utils import check, make_types_consistent
+from libsa4py.utils import list_files, read_file, write_file
 from libsa4py.exceptions import ParseError
 from libsa4py.cst_extractor import Extractor
 import shutil
+import libcst as cst
+from tqdm import tqdm
 
 
 def pyre_start(project_path):
@@ -73,3 +77,53 @@ def pyre_infer(repo, project_dir):
     shutil.rmtree(cache_path)
 
     return project_analyzed_files
+
+
+def extract(code):
+    parsed_program = cst.parse_module(code)
+    transformer = TypeAnnotationFinder()
+    new_tree = cst.metadata.MetadataWrapper(parsed_program).visit(transformer)
+    return transformer.annotated_types
+
+
+def mask_reveal(code, type):
+    parsed_program = cst.parse_module(code)
+    transformer_mask = TypeAnnotationMasker(type)
+    new_tree = cst.metadata.MetadataWrapper(parsed_program).visit(transformer_mask)
+    return new_tree.code
+
+
+
+def pyright_infer(project_path):
+    project_author = project_path.split("/")[len(project_path.split("/")) - 2]
+    project_name = project_path.split("/")[len(project_path.split("/")) - 1]
+    t_list = []
+    files = list_files(project_path)
+    for file in tqdm(files):
+        try:
+            pre_list = []
+            code = read_file(file)
+            type_list = extract(code)
+            for type_info in type_list:
+                label = make_types_consistent(type_info["label"])
+                if not check(label):
+                    continue
+                code_org = code
+                code_masked = mask_reveal(code_org, type_info)
+                write_file(f"{project_author}{project_name}.py", code_masked)
+                predict = None
+                # for pyright infer
+                predict = pyright_infer(f"{project_author}{project_name}.py", type_info["dt"], type_info["name"])
+                if predict is not None:
+                    predict["label"] = label
+                    predict["loc"] = type_info["loc"]
+                    pre_list.append(predict)
+                os.remove(f"{project_author}{project_name}.py")
+            if len(pre_list) != 0:
+                t_list.append({file: pre_list})
+        except ParseError as err:
+            print(err)
+        except UnicodeDecodeError:
+            print(f"Could not read file {file}")
+
+    return t_list

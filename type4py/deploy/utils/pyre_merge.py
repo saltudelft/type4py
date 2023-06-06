@@ -1,33 +1,7 @@
 """
 functions for merging the type information from static analysis and machine learning
 """
-import regex
-
-
-def type_consist(t: str):
-    sub_regex = r'typing\.|typing_extensions\.|t\.|builtins\.|collections\.'
-
-    def remove_quote_types(t: str):
-        s = regex.search(r'^\'(.+)\'$', t)
-        if bool(s):
-            return s.group(1)
-        else:
-            # print(t)
-            return t
-
-    t = regex.sub(sub_regex, "", str(t))
-    t = remove_quote_types(t)
-    return t
-
-
-def check(t: str):
-    types = ["", "Any", "any", "None", "Object", "object", "type", "Type[Any]",
-             'Type[cls]', 'Type[type]', 'Type', 'TypeVar', 'Optional[Any]']
-    if t in types:
-        return False
-    else:
-        return True
-
+from preprocess_utils import check, make_types_consistent
 
 def merge_vars(sa_dict, ml_dict):
     add = 0
@@ -37,7 +11,7 @@ def merge_vars(sa_dict, ml_dict):
     else:
         var_dict_1 = {}
     for var_key in var_dict_sa.keys():
-        var_dict_sa[var_key] = type_consist(var_dict_sa[var_key])
+        var_dict_sa[var_key] = make_types_consistent(var_dict_sa[var_key])
         if check(var_dict_sa[var_key]):
             if var_key in var_dict_1.keys():
                 if len(var_dict_1[var_key]) != 0 and var_dict_1[var_key][0][0] != var_dict_sa[var_key]:
@@ -58,7 +32,7 @@ def merge_params(sa_dict, ml_dict):
 
     for param_key in param_dict_sa.keys():
         if param_key in param_dict_1.keys():
-            param_dict_sa[param_key] = type_consist(param_dict_sa[param_key])
+            param_dict_sa[param_key] = make_types_consistent(param_dict_sa[param_key])
             if check(param_dict_sa[param_key]):
                 if len(param_dict_1[param_key]) != 0 and param_dict_1[param_key][0][0] != param_dict_sa[param_key]:
                         sa_type = [param_dict_sa[param_key], 1.1]
@@ -75,7 +49,7 @@ def merge_ret_types(sa_dict, ml_dict):
         ret_type_1 = ml_dict["ret_type_p"]
     else:
         ret_type_1 = []
-    ret_type_sa = type_consist(ret_type_sa)
+    ret_type_sa = make_types_consistent(ret_type_sa)
     if check(ret_type_sa):
         if len(ret_type_1) != 0 and ret_type_1[0][0] != ret_type_sa:
             sa_type = [ret_type_sa, 1.1]
@@ -89,7 +63,7 @@ def merge_file(sa_file, ml_file):
     add_var = 0
     add_params = 0
     add_ret_type = 0
-    # print("find")
+
     # merge variables in the py file
     merged_file, add = merge_vars(sa_file, ml_file)
     add_var = add_var + add
