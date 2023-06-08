@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import utils.pyre_utils as pyre_util
 from utils.utils import rebuild_repo
-from utils.cst_utils import TypeAnnotationFinder, TypeAnnotationMasker
+from libsa4py.cst_transformers import TypeAnnotationFinder, TypeAnnotationMasker
 from utils.preprocess_utils import check, make_types_consistent
 from libsa4py.utils import list_files, read_file, write_file
 from libsa4py.exceptions import ParseError
