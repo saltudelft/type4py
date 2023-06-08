@@ -134,7 +134,7 @@ project-based CLI command includes three approaches:
 -t4pyright: type4py + pyright
 '''
 def infer_project(args):
-    approach_list = {"t4py", "hybrid0", "hybrid1"}
+    approach_list = {"t4py", "t4pyre", "t4pyright"}
     if args.a in approach_list:
         from type4py.deploy.infer_project import infer_project_main
         setup_logs_file(args.m, 'infer_project')
