@@ -299,7 +299,12 @@ def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: boo
 
     if not (os.path.exists(os.path.join(output_dir, "all_fns.csv")) and os.path.exists(os.path.join(output_dir, "all_vars.csv"))):
         logger.info("Merging JSON projects")
-        merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
+        if os.path.exists(os.path.join(output_dir, 'processed_projects')):
+            merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
+        elif os.path.exists(os.path.join(output_dir, 'processed_projects_complete')):
+            merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects_complete'), ".json"), limit)
+        else:
+            raise RuntimeError("Could not find processed projects in the ManyTypes4Py dataset")
         logger.info("Creating functions' Dataframe")
         create_dataframe_fns(output_dir, merged_jsons)
         logger.info("Creating variables' Dataframe")
