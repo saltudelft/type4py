@@ -11,9 +11,11 @@ bp = Blueprint('type4py_api', __name__, template_folder='templates', url_prefix=
 
 t4py_pretrained_m = None
 
-@app.before_first_request
-def load_type4py_model():
-    global t4py_pretrained_m
+with app.app_context():
+    """
+    load type4pymodel using app_context since Flask before_first_request has been
+    deprecated https://github.com/pallets/flask/blob/main/CHANGES.rst#version-230
+    """
     t4py_pretrained_m = PretrainedType4Py(app.config['MODEL_PATH'],
                                           app.config['DEVICE'],
                                           app.config['PRE_READ_TYPE_CLUSTER'],
@@ -40,7 +42,7 @@ def predict_type4py_model(src_file: str, **args) -> dict:
 
     # if len(request.data.splitlines()) > app.config['MAX_LOC']:
     #     return PredictResponse(None, f"File is larger than {app.config['MAX_LOC']} LoC").get()
-    
+
     if bool(int(args.get("tc"))):
         return PredictResponse(None, "Type-checking is not available yet!").get()
         #return ServerResponse(get_type_checked_preds(type_annotate_file(t4py_pretrained_m, src_file, None), src_file)).get()
@@ -82,7 +84,7 @@ def submit_accepted_types():
 
     if is_session_id_valid(request.args.get('sid')):
         app.logger.info(f"Accepted type {request.args.get('at')} for {request.args.get('ts')} {request.args.get('idn')} at line {request.args.get('tsl')} with rank {request.args.get('r')} {int(request.args.get('cp'))} | sess: {request.args.get('sid')}")
-        return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'), 
+        return AcceptTypeResponse(request.args.get('sid'), request.args.get('at'), request.args.get('r'), request.args.get('ts'),
                                   request.args.get('idn'), request.args.get('tsl'), int(request.args.get('cp')),
                                   int(request.args.get('fp')), response='Thanks for submitting accepted types!').get()
     else:
