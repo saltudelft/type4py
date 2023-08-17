@@ -143,6 +143,8 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
 
+    logger.info(f"Model training on {DEVICE}")
+
     criterion = torch.nn.TripletMarginLoss(margin=model_params['margin'])
     optimizer = torch.optim.Adam(model.parameters(), lr=model_params['lr'])
 
