@@ -243,7 +243,7 @@ def encode_all_types(df_ret: pd.DataFrame, df_params: pd.DataFrame, df_vars: pd.
     logger.info(f"Total no. of extracted types: {len(all_types):,}")
     logger.info(f"Total no. of unique types: {len(unq_types):,}")
 
-    return df_ret, df_params, le_all
+    return df_vars, df_ret, df_params, le_all
 
 def gen_most_frequent_avl_types(avl_types_dir, output_dir, top_n: int = 1024) -> pd.DataFrame:
     """
@@ -392,7 +392,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: boo
     # Exclude variables without a type
     processed_proj_vars = filter_var_wo_type(processed_proj_vars)
 
-    processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
+    processed_proj_vars, processed_proj_fns, processed_proj_fns_params, le_all = encode_all_types(processed_proj_fns, processed_proj_fns_params,
                                                                              processed_proj_vars, output_dir)
 
     # Exclude self from arg names and return expressions
