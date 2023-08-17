@@ -245,7 +245,7 @@ def process_datapoints(df, output_path, embedding_type, type, trans_func, cached
             start_idx = i
             end_idx = min(i + batch_size, num_rows)
             batch = datapoints.iloc[start_idx:end_idx]
-            datapoints_X[start_idx:end_idx, :, :] = np.stack(batch.progress_apply(lambda x: x.generate_datapoint()),
+            datapoints_X[start_idx:end_idx, :, :] = np.stack(batch.apply(lambda x: x.generate_datapoint()),
                                                              axis=0)
         np.save(os.path.join(output_path, embedding_type + type + '_datapoints_x'), datapoints_X)
 
