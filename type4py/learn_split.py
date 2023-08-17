@@ -128,7 +128,8 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
     trained_model_name, trained_types = find_existing_model(data_loading_funcs, output_path)
 
     if trained_types == None:
-        logger.info("No trained model found, starting to intialize the model...")
+        trained_model_name = f"type4py_{data_loading_funcs['name']}_model.pt"
+        logger.info(f"No trained model found, starting to intialize the model {trained_model_name}...")
         # Loading the model
         model = load_model(data_loading_funcs['name'], model_params)
         logger.info(f"Intializing the {model.__class__.__name__} model")
@@ -156,7 +157,5 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
 
     # Saving the model
     logger.info("Saved the trained Type4Py model for %s prediction on the disk" % data_loading_funcs['name'])
-    if trained_model_name == None:
-        trained_model_name == f"type4py_{data_loading_funcs['name']}_model.pt"
     torch.save(model.module if torch.cuda.device_count() > 1 else model,
                join(output_path, f"{trained_model_name[:-3]}_{dataset_type}.pt"))
