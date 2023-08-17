@@ -156,6 +156,5 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
 
     # Saving the model
     logger.info("Saved the trained Type4Py model for %s prediction on the disk" % data_loading_funcs['name'])
-    os.remove(output_path, trained_model_name)
     torch.save(model.module if torch.cuda.device_count() > 1 else model,
                join(output_path, f"{trained_model_name[:-3]}_{dataset_type}.pt"))
