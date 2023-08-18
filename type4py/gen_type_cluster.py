@@ -163,16 +163,16 @@ def gen_type_cluster(output_path: str, data_loading_funcs: dict, datatype: str, 
 
         # update and save the annoy_index and embed_labels
         if cluster_file is not None:
-            os.remove(join(output_path,cluster_file))
-            cluster_file = cluster_file + "_" + datatype
-            annoy_index.save(join(output_path, cluster_file))
+            cluster_file_new = cluster_file + "_" + datatype
+            annoy_index.save(join(output_path, cluster_file_new))
+            os.remove(join(output_path, cluster_file))
         else:
             annoy_index.save(join(output_path, f"type4py_{data_loading_funcs['name']}_type_cluster_{datatype}"))
 
         if embedded_file is not None:
+            embedded_file_new = processed_type_em + "_" + datatype + ".npy"
+            np.save(join(output_path, embedded_file_new), embed_labels)
             os.remove(join(output_path, embedded_file))
-            embedded_file = processed_type_em + "_" + datatype
-            np.save(join(output_path, embedded_file), embed_labels)
         else:
             np.save(join(output_path, f"type4py_{data_loading_funcs['name']}_true_{datatype}.npy"), embed_labels)
 

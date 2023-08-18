@@ -21,9 +21,9 @@ def type4py_to_onnx(args):
     if os.path.exists(join(args.o, "type4py_complete_model.pt")):
         logger.info("Loading the pre-trained Type4Py model")
         type4py_model = torch.load(join(args.o, "type4py_complete_model.pt")).model
-    elif os.path.exists(join(args.o, "type4py_complete_model_var_param_return.pt")):
+    elif os.path.exists(join(args.o, "type4py_complete_model_var_param_ret.pt")):
         logger.info("Loading the pre-trained Type4Py model")
-        type4py_model = torch.load(join(args.o, "type4py_complete_model_var_param_return.pt")).model
+        type4py_model = torch.load(join(args.o, "type4py_complete_model_var_param_ret.pt")).model
     else:
         raise FileNotFoundError("Type4Py model not found!")
 

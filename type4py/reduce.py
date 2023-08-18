@@ -23,9 +23,9 @@ def reduce_tc(args):
     if os.path.exists(join(args.o, "type4py_complete_type_cluster")):
         logger.info("Loading type clusters: type4py_complete_type_cluster")
         type_cluster_index.load(join(args.o, "type4py_complete_type_cluster"))
-    elif os.path.exists(join(args.o, "type4py_complete_type_cluster_var_param_return")):
-        logger.info("Loading type clusters: type4py_complete_type_cluster_var_param_return")
-        type_cluster_index.load(join(args.o, "type4py_complete_type_cluster_var_param_return"))
+    elif os.path.exists(join(args.o, "type4py_complete_type_cluster_var_param_ret")):
+        logger.info("Loading type clusters: type4py_complete_type_cluster_var_param_ret")
+        type_cluster_index.load(join(args.o, "type4py_complete_type_cluster_var_param_ret"))
     else:
         raise TypeClusterNotFound
 

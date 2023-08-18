@@ -73,6 +73,24 @@ Description:
 
 - `--p $PARAM_FILE`: The path to user-provided hyper-parameters for the model. See [this](https://github.com/saltudelft/type4py/blob/main/type4py/model_params.json) file as an example. [Optional]
 
+## 4*. Learning separately
+```
+$ type4py learns --o $OUTPUT_DIR --dt $DATA_TYPE --c --p $PARAM_FILE 
+```
+- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
+- `$DATA_TYPE`: Sequential Learing, either `var`, or `param` or `ret`
+- `--c`: Trains the complete model. Use `type4py learn -h` to see other configurations.
+
+- `--p $PARAM_FILE`: The path to user-provided hyper-parameters for the model. See [this](https://github.com/saltudelft/type4py/blob/main/type4py/model_params.json) file as an example. [Optional]
+
+## 4**. Gernerating Type Cluster
+```
+$ type4py gen_type_clu --o $OUTPUT_DIR --dt $DATA_TYPE 
+```
+- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
+- `$DATA_TYPE`: Sequential Learing, either `var`, or `param` or `ret`
+
+
 ## 5. Testing
 ```
 $ type4py predict --o $OUTPUT_DIR --c

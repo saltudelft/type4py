@@ -305,7 +305,7 @@ def preprocess_ext_fns(output_dir: str, limit: int = None, apply_random_vth: boo
 
     if not (os.path.exists(os.path.join(output_dir, "all_fns.csv")) and os.path.exists(os.path.join(output_dir, "all_vars.csv"))):
         logger.info("Merging JSON projects")
-        merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), limit)
+        merged_jsons = merge_jsons_to_dict(list_files(os.path.join(output_dir, 'processed_projects'), ".json"), output_dir, limit)
         logger.info("Creating functions' Dataframe")
         create_dataframe_fns(output_dir, merged_jsons)
         logger.info("Creating variables' Dataframe")

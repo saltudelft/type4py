@@ -91,6 +91,8 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl"), 'rb') as f1:
             count_types_var = pickle.load(f1)
         count_types.update(count_types_var)
+        # delete the old existing pkl
+        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl"))
         # also add suffix to filename
         type_filename = type_filename + "_var"
 
@@ -99,6 +101,7 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl"), 'rb') as f2:
             count_types_param = pickle.load(f2)
         count_types.update(count_types_param)
+        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl"))
         type_filename = type_filename + "_param"
 
     # if find existing types in "ret" dataset, load them for updating for final common types
@@ -106,6 +109,7 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
         with open(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl"), 'rb') as f3:
             count_types_ret = pickle.load(f3)
         count_types.update(count_types_ret)
+        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl"))
         type_filename = type_filename + "_ret"
 
     common_types = [t.item() for t in train_data_loader.dataset.labels if count_types[t.item()] >= 100]
@@ -129,7 +133,7 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
 
     if trained_types == None:
         trained_model_name = f"type4py_{data_loading_funcs['name']}_model.pt"
-        logger.info(f"No trained model found, starting to intialize the model {trained_model_name}...")
+        logger.info(f"No trained model found, starting to initialize the model {trained_model_name}...")
         # Loading the model
         model = load_model(data_loading_funcs['name'], model_params)
         logger.info(f"Intializing the {model.__class__.__name__} model")
