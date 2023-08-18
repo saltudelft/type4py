@@ -47,7 +47,8 @@ def test_split(output_path: str, data_loading_funcs: dict):
     logger.info("Loading the reduced type clusters")
 
     pca_transform = pickle.load(open(join(output_path, "type_clusters_pca.pkl"), 'rb'))
-    embed_labels = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_true.npy"))
+    embed_labels = np.load(join(output_path, f"type4py_{data_loading_funcs['name']}_true_var_param_ret.npy"))
+    embed_labels = np.array(embed_labels, dtype=int)
     annoy_index = AnnoyIndex(pca_transform.n_components_, 'euclidean')
     annoy_index.load(join(output_path, "type4py_complete_type_cluster_reduced"))
 

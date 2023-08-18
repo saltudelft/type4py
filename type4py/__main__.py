@@ -104,7 +104,7 @@ def predict_split(args):
     from type4py.predict_split import test_split
     setup_logs_file(args.o, "predict_sep")
     if args.c:
-        test_split(args.o, data_loading_comb_sep)
+        test_split(args.o, data_loading_comb)
 
 def eval(args):
     from type4py.eval import evaluate
@@ -257,7 +257,7 @@ def main():
     infer_parser_pro.add_argument('--o', '--output', required=True, type=str,
                                   help="Path to store the ml_infer outputs")
     infer_parser_pro.add_argument('--a', '--approach', required=True, type=str,
-                                  help="infer approach includes ml, hybrid0, hybrid1")
+                                  help="infer approach includes t4py, t4pyre, t4pyright, t4pysa")
     # split according to dataset_split_repo.csv
     infer_parser_pro.add_argument('--split', '--split_file', required=True, type=str,
                                   help="file to store the split of projects")
