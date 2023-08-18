@@ -1,5 +1,5 @@
 {
-    "epochs": 25,
+    "epochs": 5,
     "lr": 0.002,
     "dr": 0.25,
     "output_size": 1536,
