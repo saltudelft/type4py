@@ -259,8 +259,8 @@ def main():
     infer_parser_pro.add_argument('--a', '--approach', required=True, type=str,
                                   help="infer approach includes t4py, t4pyre, t4pyright, t4pysa")
     # split according to dataset_split_repo.csv
-    infer_parser_pro.add_argument('--split', '--split_file', required=True, type=str,
-                                  help="file to store the split of projects")
+    infer_parser_pro.add_argument('--split', '--split_file', type=str,
+                                  help="file to store the split of projects", default='test_repo.csv')
     infer_parser_pro.set_defaults(func=infer_project)
 
     # To ONNX format

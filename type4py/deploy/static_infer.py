@@ -4,10 +4,10 @@ This module is for static infer, including pyre infer and pyright infer
 
 import os
 from pathlib import Path
-import utils.pyre_utils as pyre_util
-from utils.utils import rebuild_repo
+import type4py.deploy.utils.pyre_utils as pyre_util
+from type4py.deploy.utils.utils import rebuild_repo
 from libsa4py.cst_transformers import TypeAnnotationFinder, TypeAnnotationMasker
-from utils.preprocess_utils import check, make_types_consistent
+from type4py.deploy.utils.preprocess_utils import check, make_types_consistent
 from libsa4py.utils import list_files, read_file, write_file
 from libsa4py.exceptions import ParseError
 from libsa4py.cst_extractor import Extractor

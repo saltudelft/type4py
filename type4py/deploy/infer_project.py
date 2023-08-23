@@ -27,20 +27,18 @@ def find_test_list(project_dir, dataset_split):
     if os.path.exists(dataset_split):
         repos_list: List[dict] = []
 
-        df = pd.read_csv(dataset_split)
-        test_df = df[df['set'] == 'test']
+        test_df = pd.read_csv(dataset_split)
         for index, row in test_df.iterrows():
             project = row['project']
-            author = project.split('/')[1]
-            repo = project.split('/')[2]
+            author = project.split('/')[0]
+            repo = project.split('/')[1]
             project_path = os.path.join(project_dir, author, repo)
             if os.path.isdir(project_path):
                 repos_list.append({"author": author, "repo": repo})
         return repos_list
 
     else:
-        # logger.info(f"dataset_split file: {dataset_split} does not exist!")
-        raise FileNotFoundError(f"dataset_split file: {dataset_split} does not exist!")
+        print("test_repo.csv does not exist!")
 
 def ml_infer(repo, model, project_dir):
     project_author = repo["author"]
