@@ -34,19 +34,6 @@ def check_pickle_file(data_loading_funcs, output_path):
             trained = middle.split("_")
             return filename, trained
     return None, None
-    # var_exist = False
-    # param_exist = False
-    # ret_exist = False
-    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl")) and type != "var":
-    #     var_exist = True
-    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_var.pkl file !")
-    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl")) and type != "param":
-    #     param_exist = True
-    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_param.pkl file !")
-    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl")) and type != "ret":
-    #     ret_exist = True
-    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_ret.pkl file !")
-    # return var_exist, param_exist, ret_exist
 
 
 # find existing trained model, return trained_types
