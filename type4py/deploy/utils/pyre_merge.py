@@ -132,7 +132,7 @@ def update_key(file_name, project_id):
             start_index = i
             break
     new_list = []
-    new_list.append("data")
+    new_list.append("raw_projects")
     while start_index < len(list):
         new_list.append(list[start_index])
         start_index = start_index + 1

@@ -78,11 +78,11 @@ def ml_infer(repo, model, project_dir):
     return project_analyzed_files
 
 
-def run_mlInfer():
+def run_mlInfer(repo, model, project_dir):
     ml_result = ml_infer(repo, model, project_dir)
     ml_queue.put(ml_result)
 
-def run_pyreInfer():
+def run_pyreInfer(repo, project_dir):
     pyre_result = pyre_infer(repo, project_dir)
     pyre_queue.put(pyre_result)
 
@@ -117,9 +117,11 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
 
     if approach == "t4pyre":
         predict_list = []
-        for repo in tqdm(repo_infos_test):
-            process1 = multiprocessing.Process(target=run_mlInfer)
-            process2 = multiprocessing.Process(target=run_pyreInfer)
+        os.makedirs("t4pyre_res", exist_ok=True)
+        ml_dir = "t4pyre_res"
+        for repo in repo_infos_test:
+            process1 = multiprocessing.Process(target=run_mlInfer, args=(repo, model, project_dir))
+            process2 = multiprocessing.Process(target=run_pyreInfer, args = (repo, project_dir))
 
             # Start the processes
             process1.start()
@@ -133,8 +135,14 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             project_name = "".join((repo["author"], repo["repo"]))
             hy_result = merge_pyre(ml_result, sa_result, project_id)
 
-            filepath = os.path.join(tar_dir, f"{project_name}_t4pyreInfer.json")
+            filepath = os.path.join(ml_dir, f"{project_name}_t4pyreInfer.json")
             save_json(filepath, hy_result)
+            label_filename = "".join((repo["author"], repo["repo"])) + ".json"
+            label_file = load_json(os.path.join(tar_dir, "processed_projects", label_filename))
+            t4pyre_predicts = extract_result_ml(label_file, hy_result, project_id)
+            predict_list.extend(t4pyre_predicts)
+
+        save_json(os.path.join(tar_dir, f"type4pyre_complete_test_predictions.json"), predict_list)
 
 
     if approach == "t4pyright":

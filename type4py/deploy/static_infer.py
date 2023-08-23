@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import type4py.deploy.utils.pyre_utils as pyre_util
 from type4py.deploy.utils.utils import rebuild_repo
+from type4py.deploy.utils.type_preprocess import apply_nlp_transf
 from libsa4py.cst_transformers import TypeAnnotationFinder, TypeAnnotationMasker
 from type4py.deploy.utils.type_preprocess import check, make_types_consistent
 from libsa4py.utils import list_files, read_file, write_file
@@ -49,34 +50,34 @@ def pyre_infer(repo, project_dir):
 
     if len(project_files) != 0:
         print(f'Running pyre query for project {project_path}')
-        try:
-            for filename, f_relative in project_files:
+        for filename, f_relative in project_files:
+            try:
                 pyre_data_file = pyre_util.pyre_query_types(project_path, filename)
                 project_analyzed_files[project_id]["src_files"][filename] = \
-                    Extractor.extract(read_file(filename), pyre_data_file).to_dict()
-        except ParseError as err:
-            print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
-        except UnicodeDecodeError:
-            print(f"Could not read file {filename}")
-        except Exception as err:
-            print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+                    apply_nlp_transf(Extractor.extract(read_file(filename), pyre_data_file).to_dict())
+            except ParseError as err:
+                print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+            except UnicodeDecodeError:
+                print(f"Could not read file {filename}")
+            except Exception as err:
+                print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
 
-    print(f'Saving static analysis results for {project_id}...')
+        print(f'Saving static analysis results for {project_id}...')
 
-    if len(project_analyzed_files[project_id]["src_files"].keys()) != 0:
-        project_analyzed_files[project_id]["type_annot_cove"] = \
-            round(sum([project_analyzed_files[project_id]["src_files"][s]["type_annot_cove"] for s in
-                       project_analyzed_files[project_id]["src_files"].keys()]) / len(
-                project_analyzed_files[project_id]["src_files"].keys()), 2)
+        if len(project_analyzed_files[project_id]["src_files"].keys()) != 0:
+            project_analyzed_files[project_id]["type_annot_cove"] = \
+                round(sum([project_analyzed_files[project_id]["src_files"][s]["type_annot_cove"] for s in
+                           project_analyzed_files[project_id]["src_files"].keys()]) / len(
+                    project_analyzed_files[project_id]["src_files"].keys()), 2)
 
-    pyre_util.watchman_shutdown(project_path)
-    pyre_util.pyre_server_shutdown(project_path)
-    pyre_util.clean_config(project_path)
+        pyre_util.watchman_shutdown(project_path)
+        pyre_util.pyre_server_shutdown(project_path)
+        pyre_util.clean_config(project_path)
 
-    # remove cache projects
-    shutil.rmtree(cache_path)
+        # remove cache projects
+        shutil.rmtree(cache_path)
 
-    return project_analyzed_files
+        return project_analyzed_files
 
 
 def extract(code):
