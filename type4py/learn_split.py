@@ -24,20 +24,29 @@ import pickle
 logger.name = __name__
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def check_pickle_file(type, data_loading_funcs, output_path):
-    var_exist = False
-    param_exist = False
-    ret_exist = False
-    if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl")) and type != "var":
-        var_exist = True
-        logger.info(f"find existing {data_loading_funcs['name']}_common_types_var.pkl file !")
-    if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl")) and type != "param":
-        param_exist = True
-        logger.info(f"find existing {data_loading_funcs['name']}_common_types_param.pkl file !")
-    if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl")) and type != "ret":
-        ret_exist = True
-        logger.info(f"find existing {data_loading_funcs['name']}_common_types_ret.pkl file !")
-    return var_exist, param_exist, ret_exist
+def check_pickle_file(data_loading_funcs, output_path):
+    prefix = f"{data_loading_funcs['name']}_common_types"
+    suffix = "pkl"
+    for filename in os.listdir(output_path):
+        if filename.startswith(prefix) and filename.endswith(suffix):
+            logger.info(f"find existing common types file: {filename}!")
+            middle = filename[len(prefix):-len(suffix)]
+            trained = middle.split("_")
+            return filename, trained
+    return None, None
+    # var_exist = False
+    # param_exist = False
+    # ret_exist = False
+    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl")) and type != "var":
+    #     var_exist = True
+    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_var.pkl file !")
+    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl")) and type != "param":
+    #     param_exist = True
+    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_param.pkl file !")
+    # if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl")) and type != "ret":
+    #     ret_exist = True
+    #     logger.info(f"find existing {data_loading_funcs['name']}_common_types_ret.pkl file !")
+    # return var_exist, param_exist, ret_exist
 
 
 # find existing trained model, return trained_types
@@ -76,41 +85,16 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     count_types = Counter(train_data_loader.dataset.labels.data.numpy())
 
-    var_exists, param_exits, ret_exists = check_pickle_file(dataset_type, data_loading_funcs, output_path)
+    common_typefile, common_datatype = check_pickle_file(data_loading_funcs, output_path)
+    if common_datatype == None:
+        common_typefile = f"{data_loading_funcs['name']}_common_types.pkl"
 
-    if os.path.exists(join(output_path, f"{data_loading_funcs['name']}_common_types_{dataset_type}.pkl")):
-        logger.warn(f"{data_loading_funcs['name']}_common_types_{dataset_type}.pkl file exists!")
+    else:
+        logger.info(f"Load existing {common_typefile} file !")
+        with open(join(output_path, common_typefile), 'rb') as f1:
+            count_types_pre = pickle.load(f1)
+        count_types.update(count_types_pre)
 
-    with open(join(output_path, f"{data_loading_funcs['name']}_common_types_{dataset_type}.pkl"), 'wb') as f:
-        pickle.dump(count_types, f)
-
-    type_filename = dataset_type
-
-    # if find existing types in "var" dataset, load them for updating for final common types
-    if var_exists and dataset_type != "var":
-        with open(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl"), 'rb') as f1:
-            count_types_var = pickle.load(f1)
-        count_types.update(count_types_var)
-        # delete the old existing pkl
-        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_var.pkl"))
-        # also add suffix to filename
-        type_filename = type_filename + "_var"
-
-    # if find existing types in "param" dataset, load them for updating for final common types
-    if param_exits and dataset_type != "param":
-        with open(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl"), 'rb') as f2:
-            count_types_param = pickle.load(f2)
-        count_types.update(count_types_param)
-        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_param.pkl"))
-        type_filename = type_filename + "_param"
-
-    # if find existing types in "ret" dataset, load them for updating for final common types
-    if ret_exists and dataset_type != "ret":
-        with open(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl"), 'rb') as f3:
-            count_types_ret = pickle.load(f3)
-        count_types.update(count_types_ret)
-        os.remove(join(output_path, f"{data_loading_funcs['name']}_common_types_ret.pkl"))
-        type_filename = type_filename + "_ret"
 
     common_types = [t.item() for t in train_data_loader.dataset.labels if count_types[t.item()] >= 100]
     ubiquitous_types = set(le_all.transform(['str', 'int', 'list', 'bool', 'float']))
@@ -124,9 +108,15 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
                                                              train_data_loader.dataset.labels if
                                                              t.item() in common_types]) /
                                                         train_data_loader.dataset.labels.shape[0] * 100.0))
-
-    with open(join(output_path, f"{data_loading_funcs['name']}_common_types_{type_filename}.pkl"), 'wb') as f:
+    # saving common types
+    logger.info("Saving common types...")
+    with open(join(output_path, f"{common_typefile[:-4]}_{dataset_type}.pkl"), 'wb') as f:
         pickle.dump(common_types, f)
+    # remove old common types
+    if common_datatype is not None:
+        os.remove(join(output_path, common_typefile))
+
+
 
     # get the trained_model name and trained_types
     trained_model_name, trained_types = find_existing_model(data_loading_funcs, output_path)
@@ -161,8 +151,8 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
 
     # Saving the model
     logger.info("Saved the trained Type4Py model for %s prediction on the disk" % data_loading_funcs['name'])
+    torch.save(model.module if torch.cuda.device_count() > 1 else model,
+               join(output_path, f"{trained_model_name[:-3]}_{dataset_type}.pt"))
     # remove old model
     if exists(join(output_path, trained_model_name)):
         os.remove(join(output_path, trained_model_name))
-    torch.save(model.module if torch.cuda.device_count() > 1 else model,
-               join(output_path, f"{trained_model_name[:-3]}_{dataset_type}.pt"))
