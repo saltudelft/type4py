@@ -53,4 +53,7 @@ def rebuild_repo(project_dir, tar_dir, repo_info):
 
     source_files = list_files(repo_path)
     for filename in source_files:
-        rebuild(filename, project_dir, tar_dir)
+        try:
+            rebuild(filename, project_dir, tar_dir)
+        except Exception as e:
+            print(str(e))

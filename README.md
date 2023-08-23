@@ -108,6 +108,18 @@ Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
 - `$DIMENSION`: Reduces the dimension of type clusters to the specified value [Default: 256]
 
+## 7*. Project-base inference
+```python
+$ type4py infer_project --m results --p raw_projects --o results --a t4py
+```
+- `$--m`: The path that saved the model
+- `$--p`:The path that saved the raw projects, for project-base inference
+- `$--o`:The path that output the inference results
+- `$--a`:The approach you want, including t4py, t4pyre, t4pyright
+```python
+$ type4py infer_project --m results --p raw_projects --o results --a t4pyre
+```
+
 ## 7. Testing
 ```
 $ type4py predicts --o $OUTPUT_DIR
