@@ -7,6 +7,7 @@ from type4py import logger, AVAILABLE_TYPES_NUMBER, TOKEN_SEQ_LEN
 from type4py.vectorize import IdentifierSequence, TokenSequence, type_vector
 from type4py.type_check import MypyManager, type_check_single_file
 from type4py.utils import create_tmp_file, load_model_params
+from type4py.deploy.utils.type_preprocess import apply_nlp_transf
 from libsa4py import PY_BUILTINS_MOD, PY_TYPING_MOD, PY_COLLECTION_MOD
 from libsa4py.cst_extractor import Extractor
 from libsa4py.representations import ModuleInfo
@@ -75,7 +76,7 @@ class PretrainedType4Py:
                                             'euclidean')
         self.type_clusters_idx.load(join(self.pre_trained_model_path, "type4py_complete_type_cluster_reduced" if self.use_pca else "type4py_complete_type_cluster"),
                                     prefault=self.pre_read_type_cluster)
-        self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true.npy"))
+        self.type_clusters_labels = np.load(join(self.pre_trained_model_path, f"type4py_complete_true_var_param_ret.npy"))
         self.label_enc = pickle.load(open(join(self.pre_trained_model_path, "label_encoder_all.pkl"), 'rb'))
         logger.info(f"Loaded the Type Clusters")
 
@@ -742,16 +743,16 @@ def type_annotate_file(pre_trained_m: PretrainedType4Py, source_code: str, sourc
     else:
         src_f_read = source_code
     #src_f_ext = analyze_src_f(src_f_read).to_dict()
-    ext_type_hints = Extractor.extract(src_f_read, include_seq2seq=False).to_dict()
-    logger.info("Extracted JSON-representation of input source file")
+    ext_type_hints = apply_nlp_transf(Extractor.extract(src_f_read, include_seq2seq=False).to_dict())
+    # logger.info("Extracted JSON-representation of input source file")
 
     all_type_slots, vars_type_hints, params_type_hints, rets_type_hints = get_dps_single_file(ext_type_hints)
-    logger.info("Extracted type hints from JSON")
+    # logger.info("Extracted type hints from JSON")
 
     ext_type_hints = get_type_preds_single_file(ext_type_hints, all_type_slots,
                                                 (vars_type_hints, params_type_hints, rets_type_hints),
                                                 pre_trained_m, filter_pred_types)
-    logger.info("Predicted type annotations for the given file")
+    # logger.info("Predicted type annotations for the given file")
 
     # type_check_inferred_types(src_f_ext, src_f_read, join(dirname(source_file_path),
     #                           splitext(basename(source_file_path))[0]+OUTPUT_FILE_SUFFIX))

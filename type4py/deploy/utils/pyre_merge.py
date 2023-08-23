@@ -1,7 +1,7 @@
 """
 functions for merging the type information from static analysis and machine learning
 """
-from preprocess_utils import check, make_types_consistent
+from type4py.deploy.utils.type_preprocess import check, make_types_consistent
 
 def merge_vars(sa_dict, ml_dict):
     add = 0

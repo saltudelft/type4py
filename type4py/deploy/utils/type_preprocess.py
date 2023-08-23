@@ -6,6 +6,43 @@ Including functions for preprocess among different infer results
 '''
 
 import regex
+from libsa4py.nl_preprocessing import NLPreprocessor
+
+
+def apply_nlp_transf(extracted_module):
+    """
+    Applies NLP transformation to identifiers in a module
+    """
+    nlp_prep = NLPreprocessor()
+
+    def fn_nlp_transf(fn_d, nlp_prep: NLPreprocessor):
+        fn_d['name'] = nlp_prep.process_identifier(fn_d['name'])
+        fn_d['params'] = {nlp_prep.process_identifier(p): t for p, t in fn_d['params'].items()}
+        fn_d['ret_exprs'] = [nlp_prep.process_identifier(r.replace('return ', '')) for r in fn_d['ret_exprs']]
+        fn_d['params_occur'] = {p: [nlp_prep.process_sentence(j) for i in o for j in i] for p, o in
+                                fn_d['params_occur'].items()}
+        fn_d['variables'] = {nlp_prep.process_identifier(v): t for v, t in fn_d['variables'].items()}
+        fn_d['fn_var_occur'] = {v: [nlp_prep.process_sentence(j) for i in o for j in i] for v, o in
+                                fn_d['fn_var_occur'].items()}
+        fn_d['params_descr'] = {nlp_prep.process_identifier(p): nlp_prep.process_sentence(fn_d['params_descr'][p]) \
+                                for p in fn_d['params_descr'].keys()}
+        fn_d['docstring']['func'] = nlp_prep.process_sentence(fn_d['docstring']['func'])
+        fn_d['docstring']['ret'] = nlp_prep.process_sentence(fn_d['docstring']['ret'])
+        fn_d['docstring']['long_descr'] = nlp_prep.process_sentence(fn_d['docstring']['long_descr'])
+        return fn_d
+
+    extracted_module['variables'] = {nlp_prep.process_identifier(v): t for v, t in
+                                     extracted_module['variables'].items()}
+    extracted_module['mod_var_occur'] = {v: [nlp_prep.process_sentence(j) for i in o for j in i] for v,o in extracted_module['mod_var_occur'].items()}
+
+    for c in extracted_module['classes']:
+        c['variables'] = {nlp_prep.process_identifier(v): t for v, t in c['variables'].items()}
+        c['cls_var_occur'] = {v: [nlp_prep.process_sentence(j) for i in o for j in i] for v, o in
+                              c['cls_var_occur'].items()}
+        c['funcs'] = [fn_nlp_transf(f, nlp_prep) for f in c['funcs']]
+    extracted_module['funcs'] = [fn_nlp_transf(f, nlp_prep) for f in extracted_module['funcs']]
+
+    return extracted_module
 
 def check(t: str):
     types = ["", "Any", "any", "None", "Object", "object", "type", "Type[Any]",

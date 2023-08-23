@@ -8,10 +8,11 @@ import pandas as pd
 import tqdm
 
 from type4py.deploy.infer import PretrainedType4Py, type_annotate_file
+from type4py.deploy.utils.extract_types import extract_result_ml
 from type4py import logger
 from libsa4py.exceptions import ParseError
 
-from libsa4py.utils import list_files, find_repos_list, save_json
+from libsa4py.utils import list_files, find_repos_list, save_json, load_json
 from pathlib import Path
 import multiprocessing
 from type4py.deploy.static_infer import pyre_infer, pyright_infer
@@ -99,13 +100,23 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
         logger.info(f'Totally find {len(repo_infos_test)} projects in project dir')
 
     if approach == "t4py":
-        for repo in tqdm(repo_infos_test):
+        predict_list = []
+        os.makedirs("ml_res", exist_ok=True)
+        ml_dir = "ml_res"
+        for repo in repo_infos_test:
             project_name = "".join((repo["author"], repo["repo"]))
-            filepath = os.path.join(tar_dir, f"{project_name}_mlInfer.json")
-            processed_file = ml_infer(repo, model, project_dir, tar_dir)
+            project_id = "/".join((repo["author"], repo["repo"]))
+            filepath = os.path.join(ml_dir, f"{project_name}_mlInfer.json")
+            processed_file = ml_infer(repo, model, project_dir)
             save_json(filepath, processed_file)
+            label_filename = "".join((repo["author"], repo["repo"])) + ".json"
+            label_file = load_json(os.path.join(tar_dir, "processed_projects", label_filename))
+            ml_predicts = extract_result_ml(label_file, processed_file, project_id)
+            predict_list.extend(ml_predicts)
+        save_json(os.path.join(tar_dir, f"type4py_complete_test_predictions.json"),predict_list)
 
     if approach == "t4pyre":
+        predict_list = []
         for repo in tqdm(repo_infos_test):
             process1 = multiprocessing.Process(target=run_mlInfer)
             process2 = multiprocessing.Process(target=run_pyreInfer)
@@ -124,6 +135,7 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
 
             filepath = os.path.join(tar_dir, f"{project_name}_t4pyreInfer.json")
             save_json(filepath, hy_result)
+
 
     if approach == "t4pyright":
         for repo in tqdm(repo_infos_test):

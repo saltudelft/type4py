@@ -1,4 +1,4 @@
-from preprocess_utils import check, make_types_consistent, resolve_type_aliasing
+from type4py.deploy.utils.type_preprocess import check, make_types_consistent, resolve_type_aliasing
 
 def merge_vars(var_dict_sa, ml_dict, range):
     if "variables_p" in ml_dict.keys():
