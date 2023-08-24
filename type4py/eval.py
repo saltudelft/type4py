@@ -199,6 +199,8 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, approach, top
         approach_name = "Type4Py"
     elif approach == "t4pyre":
         approach_name = "Type4Pyre"
+    elif approach == "t4pyright":
+        approach_name = "Type4Pyright"
     else:
         approach_name = "UnDefined"
 

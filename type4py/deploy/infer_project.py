@@ -146,6 +146,9 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
 
 
     if approach == "t4pyright":
+        predict_list = []
+        os.makedirs("t4pyright_res", exist_ok=True)
+        ml_dir = "t4pyright_res"
         for repo in tqdm(repo_infos_test):
             process1 = multiprocessing.Process(target=run_mlInfer)
             process2 = multiprocessing.Process(target=run_pyrightInfer)
@@ -162,8 +165,14 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             project_name = "".join((repo["author"], repo["repo"]))
             hy_result = merge_pyright(ml_result, sa_result, project_id)
 
-            filepath = os.path.join(tar_dir, f"{project_name}_t4pyrightInfer.json")
+            filepath = os.path.join(ml_dir, f"{project_name}_t4pyrightInfer.json")
             save_json(filepath, hy_result)
+            label_filename = "".join((repo["author"], repo["repo"])) + ".json"
+            label_file = load_json(os.path.join(tar_dir, "processed_projects", label_filename))
+            t4pyright_predicts = extract_result_ml(label_file, hy_result, project_id)
+            predict_list.extend(t4pyright_predicts)
+        save_json(os.path.join(tar_dir, f"{approach}_complete_test_predictions.json"), predict_list)
+
 
 def infer_project_main(model_path, input_path, output_path, approach, split_file):
     t4py_pretrained_m = PretrainedType4Py(model_path, "gpu", pre_read_type_cluster=False, use_pca=True)
