@@ -6,6 +6,7 @@ import os
 from typing import List
 import pandas as pd
 import tqdm
+import traceback
 
 from type4py.deploy.infer import PretrainedType4Py, type_annotate_file
 from type4py.deploy.utils.extract_types import extract_result_ml
@@ -63,14 +64,15 @@ def ml_infer(repo, model, project_dir):
                 project_analyzed_files[project_id]["src_files"][filename] = \
                     ext_type_hints
             except ParseError as err:
-                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
                 pass
+                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
             except UnicodeDecodeError:
+                pass
                 # print(f"Could not read file {filename}")
-                pass
             except Exception as err:
-                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
                 pass
+                # traceback.print_exc()
+                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
 
     if len(project_analyzed_files[project_id]["src_files"].keys()) != 0:
         project_analyzed_files[project_id]["type_annot_cove"] = \
