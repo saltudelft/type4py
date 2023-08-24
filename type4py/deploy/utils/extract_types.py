@@ -1,44 +1,49 @@
+from type4py.deploy.utils.type_preprocess import make_types_consistent, resolve_type_aliasing, check
+
+import re
+
 
 def extract_var(label_unit, process_unit):
     if "variables" in label_unit.keys() and "variables_p" in process_unit.keys():
         var_l = label_unit["variables"]
         var_p_l = process_unit["variables_p"]
         var_list_unit = []
-        if len(var_l)!=0:
+        if len(var_l) != 0:
             for var_name in var_l.keys():
                 label = var_l[var_name]
                 if var_name in var_p_l.keys():
                     predicts = var_p_l[var_name]
-                    var_list_unit.append({"original_type" : label, "t4py_predicts": predicts, "task": "variable"})
+                    var_list_unit.append({"original_type": label, "predictions": predicts, "task": "Variable"})
         return var_list_unit
     else:
         return None
+
 
 def extract_param(label_unit, process_unit):
     if "params" in label_unit.keys() and "params_p" in process_unit.keys():
         param_l = label_unit["params"]
         param_p_l = process_unit["params_p"]
         param_list_unit = []
-        if len(param_l)!=0:
+        if len(param_l) != 0:
             for param_name in param_l.keys():
                 label = param_l[param_name]
                 if param_name in param_p_l.keys():
                     predicts = param_p_l[param_name]
-                    param_list_unit.append({"original_type" : label, "t4py_predicts": predicts, "task": "parameter"})
+                    param_list_unit.append({"original_type": label, "predictions": predicts, "task": "Parameter"})
         return param_list_unit
     else:
         return None
+
 
 def extract_ret(label_unit, process_unit):
     if "ret_type" in label_unit.keys() and "ret_type_p" in process_unit.keys():
         ret_unit = []
         ret_l = label_unit["ret_type"]
         ret_p = process_unit["ret_type_p"]
-        ret_unit.append({"original_type": ret_l, "t4py_predicts": ret_p, "task": "return types"})
+        ret_unit.append({"original_type": ret_l, "predictions": ret_p, "task": "Return"})
         return ret_unit
     else:
         return None
-
 
 
 def extract_file(label_f, process_f):
@@ -48,7 +53,7 @@ def extract_file(label_f, process_f):
     ret_list_f = []
 
     var_list = extract_var(label_f, process_f)
-    if var_list is not None and len(var_list)!=0:
+    if var_list is not None and len(var_list) != 0:
         var_list_f.extend(var_list)
 
     if "funcs" in label_f.keys() and "funcs" in process_f.keys():
@@ -95,10 +100,29 @@ def extract_file(label_f, process_f):
     return type_f
 
 
+def preprocess_types(type_list):
+    processed_list = []
+    for t in type_list:
+        processed_label = make_types_consistent(t["original_type"])
+        processed_label = resolve_type_aliasing(processed_label)
+        if check(processed_label):
+            processed_preds = []
+            for p in t["predictions"]:
+                processed_pred = make_types_consistent(p[0])
+                processed_pred = resolve_type_aliasing(processed_pred)
+                if check(processed_pred):
+                    processed_preds.append([processed_pred, p[1]])
+            processed_list.append({"original_type": processed_label, "predictions": processed_preds,
+                                   "task": t["task"],
+                                   'is_parametric': bool(re.match(r'(.+)\[(.+)\]', processed_label))})
+    return processed_list
+
+
 def extract_result_ml(label_file, processed_file, project_id):
     type_project = []
     for key in processed_file[project_id]['src_files'].keys():
-        typelist_f = extract_file(label_file[project_id]['src_files'][key], processed_file[project_id]['src_files'][key])
+        typelist_f = extract_file(label_file[project_id]['src_files'][key],
+                                  processed_file[project_id]['src_files'][key])
         type_project.extend(typelist_f)
-    return type_project
-
+    type_project_processed = preprocess_types(type_project)
+    return type_project_processed
