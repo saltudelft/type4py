@@ -53,15 +53,18 @@ def extract(args):
     p = Pipeline(args.c, args.o, True, False, args.d)
     p.run(find_repos_list(args.c) if args.l is None else find_repos_list(args.c)[:args.l], args.w)
 
+
 def preprocess(args):
     from type4py.preprocess import preprocess_ext_fns
     setup_logs_file(args.o, "preprocess")
     preprocess_ext_fns(args.o, args.l, args.rvth)
 
+
 def vectorize(args):
     from type4py.vectorize import vectorize_args_ret
     setup_logs_file(args.o, "vectorize")
     vectorize_args_ret(args.o)
+
 
 def learn(args):
     from type4py.learn import train
@@ -75,12 +78,14 @@ def learn(args):
     else:
         train(args.o, data_loading_comb, args.p, args.v)
 
+
 # add learn_split function for CLI command "learn_split"
 def learn_split(args):
     from type4py.learn_split import train_split
     setup_logs_file(args.o, "learn_sep")
     if args.c:
         train_split(args.o, data_loading_comb_sep, args.dt, args.p, args.v)
+
 
 def predict(args):
     from type4py.predict import test
@@ -94,11 +99,13 @@ def predict(args):
     elif args.c:
         test(args.o, data_loading_comb, args.l, args.rtc)
 
+
 # add gen_cluster function for CLI command "gen_clu"
 def gen_type_cluster(args):
     from type4py.gen_type_cluster import gen_type_cluster
     setup_logs_file(args.o, "gen_clusters")
     gen_type_cluster(args.o, data_loading_comb_sep, args.dt)
+
 
 def predict_split(args):
     from type4py.predict_split import test_split
@@ -106,25 +113,27 @@ def predict_split(args):
     if args.c:
         test_split(args.o, data_loading_comb)
 
+
 def eval(args):
     from type4py.eval import evaluate
     setup_logs_file(args.o, "eval")
     tasks = {'c': {'Parameter', 'Return', 'Variable'}, 'p': {'Parameter'},
              'r': {'Return'}, 'v': {'Variable'}}
     if args.woi:
-        evaluate(args.o, data_loading_woi['name'], tasks[args.t], args.tp, args.mrr)
+        evaluate(args.o, args.a, data_loading_woi['name'], tasks[args.t], args.tp, args.mrr)
     elif args.woc:
-        evaluate(args.o, data_loading_woc['name'], tasks[args.t], args.tp, args.mrr)
+        evaluate(args.o, args.a, data_loading_woc['name'], tasks[args.t], args.tp, args.mrr)
     elif args.wov:
-        evaluate(args.o, data_loading_wov['name'], tasks[args.t], args.tp, args.mrr)
+        evaluate(args.o, args.a, data_loading_wov['name'], tasks[args.t], args.tp, args.mrr)
     else:
-        evaluate(args.o, data_loading_comb['name'], tasks[args.t], args.tp, args.mrr)
+        evaluate(args.o, args.a, data_loading_comb['name'], tasks[args.t], args.tp, args.mrr)
 
 
 def infer(args):
     from type4py.deploy.infer import infer_main
     setup_logs_file(args.m, 'infer')
     infer_main(args.m, args.f)
+
 
 # add projects-based infer function for command "infer_project"
 '''
@@ -133,6 +142,8 @@ project-based CLI command includes three approaches:
 -t4pyre: typ4py + pyre
 -t4pyright: type4py + pyright
 '''
+
+
 def infer_project(args):
     approach_list = {"t4py", "t4pyre", "t4pyright"}
     if args.a in approach_list:
@@ -141,6 +152,7 @@ def infer_project(args):
         infer_project_main(args.m, args.p, args.o, args.a, args.split)
     else:
         raise InferApproachNotFound
+
 
 def main():
     arg_parser = argparse.ArgumentParser()
@@ -214,19 +226,24 @@ def main():
 
     # gen type cluster incremental: predict phase generate type cluster
     predict_parser_gen_cluster = sub_parsers.add_parser('gen_type_clu')
-    predict_parser_gen_cluster.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    predict_parser_gen_cluster.add_argument('--dt', '--datatype', required=True, help="Datatype for generating type clusters")
+    predict_parser_gen_cluster.add_argument('--o', '--output', required=True, type=str,
+                                            help="Path to processed projects")
+    predict_parser_gen_cluster.add_argument('--dt', '--datatype', required=True,
+                                            help="Datatype for generating type clusters")
     predict_parser_gen_cluster.set_defaults(func=gen_type_cluster)
 
     # gen predictions via type cluster: predict phase generate predictions
     predict_parser_gen_pred = sub_parsers.add_parser('predicts')
     predict_parser_gen_pred.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
-    predict_parser_gen_pred.add_argument('--c', '--complete', default=True, action="store_true", help="Complete Type4Py model")
+    predict_parser_gen_pred.add_argument('--c', '--complete', default=True, action="store_true",
+                                         help="Complete Type4Py model")
     predict_parser_gen_pred.set_defaults(func=predict_split)
 
     # Evaluation phase
     eval_parser = sub_parsers.add_parser('eval')
     eval_parser.add_argument('--o', '--output', required=True, type=str, help="Path to processed projects")
+    eval_parser.add_argument('--a', '--approach', required=True, type=str,
+                             help="eval the infer approach includes t4py, t4pyre")
     eval_parser.add_argument('--t', '--task', default="c", type=str,
                              help="Prediction tasks (combined -> c |parameters -> p| return -> r| variable -> v)")
     eval_parser.add_argument('--tp', '--topn', default=10, type=int, help="Report top-n predictions [default n=10]")

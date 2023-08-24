@@ -113,7 +113,7 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             label_file = load_json(os.path.join(tar_dir, "processed_projects", label_filename))
             ml_predicts = extract_result_ml(label_file, processed_file, project_id)
             predict_list.extend(ml_predicts)
-        save_json(os.path.join(tar_dir, f"type4py_complete_test_predictions.json"),predict_list)
+        save_json(os.path.join(tar_dir, f"{approach}_complete_test_predictions.json"),predict_list)
 
     if approach == "t4pyre":
         predict_list = []
@@ -142,7 +142,7 @@ def infer_projects(model, project_dir, tar_dir, approach, split_file):
             t4pyre_predicts = extract_result_ml(label_file, hy_result, project_id)
             predict_list.extend(t4pyre_predicts)
 
-        save_json(os.path.join(tar_dir, f"type4pyre_complete_test_predictions.json"), predict_list)
+        save_json(os.path.join(tar_dir, f"{approach}_complete_test_predictions.json"), predict_list)
 
 
     if approach == "t4pyright":

@@ -225,11 +225,11 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
     return np.mean(mrr) * 100
 
 
-def evaluate(output_path: str, data_name: str, tasks: set, top_n: int = 10, mrr_all=False):
+def evaluate(output_path: str, approach_name: str, data_name: str, tasks: set, top_n: int = 10, mrr_all=False):
     logger.info(f"Evaluating the Type4Py {data_name} model for {tasks} prediction task")
     logger.info(f"*************************************************************************")
-    # Loading label encoder andd common types
-    test_pred = load_json(join(output_path, f'type4py_{data_name}_test_predictions.json'))
+    # Loading label encoder and common types
+    test_pred = load_json(join(output_path, f'{approach_name}_{data_name}_test_predictions.json'))
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
     common_types = pickle.load(open(join(output_path, "complete_common_types_ret_var_param.pkl"), 'rb'))
     common_types = [int(element) for element in common_types]
