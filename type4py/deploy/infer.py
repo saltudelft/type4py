@@ -282,7 +282,8 @@ def get_type_preds_single_file(src_f_ext:dict, all_type_slots: Tuple[list], all_
         code_tks_dps = np.concatenate(tuple(code_tks_dps))
         vth_dps = np.concatenate(tuple(vth_dps))
     else:
-        id_dps, code_tks_dps, vth_dps = id_dps[0], code_tks_dps[0], vth_dps[0]
+        if len(id_dps) != 0:
+            id_dps, code_tks_dps, vth_dps = id_dps[0], code_tks_dps[0], vth_dps[0]
     
     preds = type_embed_single_dp(pre_trained_m.type4py_model, id_dps, code_tks_dps, vth_dps)
     if pre_trained_m.use_pca:

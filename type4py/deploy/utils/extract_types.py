@@ -121,8 +121,9 @@ def preprocess_types(type_list):
 def extract_result_ml(label_file, processed_file, project_id):
     type_project = []
     for key in processed_file[project_id]['src_files'].keys():
-        typelist_f = extract_file(label_file[project_id]['src_files'][key],
-                                  processed_file[project_id]['src_files'][key])
-        type_project.extend(typelist_f)
+        if key in label_file[project_id]['src_files'].keys():
+            typelist_f = extract_file(label_file[project_id]['src_files'][key],
+                                    processed_file[project_id]['src_files'][key])
+            type_project.extend(typelist_f)
     type_project_processed = preprocess_types(type_project)
     return type_project_processed
