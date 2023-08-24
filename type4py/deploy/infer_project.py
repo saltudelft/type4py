@@ -63,11 +63,14 @@ def ml_infer(repo, model, project_dir):
                 project_analyzed_files[project_id]["src_files"][filename] = \
                     ext_type_hints
             except ParseError as err:
-                print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+                pass
             except UnicodeDecodeError:
-                print(f"Could not read file {filename}")
+                # print(f"Could not read file {filename}")
+                pass
             except Exception as err:
-                print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+                # print("project: %s |file: %s |Exception: %s" % (project_id, filename, err))
+                pass
 
     if len(project_analyzed_files[project_id]["src_files"].keys()) != 0:
         project_analyzed_files[project_id]["type_annot_cove"] = \

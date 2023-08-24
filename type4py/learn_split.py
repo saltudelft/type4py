@@ -103,8 +103,6 @@ def train_split(output_path: str, data_loading_funcs: dict, dataset_type: str, m
     if common_datatype is not None:
         os.remove(join(output_path, common_typefile))
 
-
-
     # get the trained_model name and trained_types
     trained_model_name, trained_types = find_existing_model(data_loading_funcs, output_path)
 
