@@ -39,6 +39,8 @@ pip install .
 Follow the below steps to train and evaluate the Type4Py model.
 ## 1. Extraction
 **NOTE:** Skip this step if you're using the ManyTypes4Py dataset.
+
+**NOTE:** You can find a new ManyTypes4Py dataset(MTV0.8) on [Zenedo](https://zenodo.org/record/8321283).
 ```
 $ type4py extract --c $DATA_PATH --o $OUTPUT_DIR --d $DUP_FILES --w $CORES
 ```
