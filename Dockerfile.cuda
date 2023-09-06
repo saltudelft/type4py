@@ -1,15 +1,41 @@
-# NOTE: This Docker file is configured to deploy Type4Py on our server and GPUs.
-# For us, these configs seem to work: CUDA 11.0.3, ONNX v1.10.0, nvidia driver 450.36.06
-FROM nvidia/cuda:11.0.3-cudnn8-runtime-ubuntu20.04
-WORKDIR /type4py/
-# Put the required models files in a folder "t4py_model_files" inside "/type4py"
-# -type4py/
-# --type4py/
-# --t4py_model_files/
-COPY . /type4py
-ENV T4PY_LOCAL_MODE="1"
+# FROM --platform=linux/amd64 ubuntu
 
-RUN apt update --fix-missing -y && apt upgrade -y && apt install -y python3-pip libpq-dev
+FROM nvidia/cuda:11.0.3-cudnn8-runtime-ubuntu20.04
+
+RUN ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone
+
+# RUN apt-get purge libappstream3
+RUN apt-get update
+
+# python 3.8 installed by one of the following packages
+# install packages needed
+RUN apt-get install -y vim
+RUN apt-get install -y wget
+RUN apt-get install unzip
+RUN apt-get install -y git
+RUN apt install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa
+
+RUN apt install -y expect
+
+RUN apt-get install -y python3-distutils
+
+RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python3 get-pip.py
+
+RUN pip --version
+
+RUN apt-get install -y libssl-dev
+
+# download watchman
+RUN wget https://github.com/facebook/watchman/releases/download/v2022.12.12.00/watchman_ubuntu20.04_v2022.12.12.00.deb
+# RUN dpkg -i watchman_ubuntu20.04_v2022.12.12.00.deb
+# RUN apt-get -f -y install
+# RUN watchman version
+
+RUN apt install -y python3.8-venv
+RUN python3 -m venv py38
+# RUN /bin/bash -c "source py38/bin/activate"
 
 # The current model files are pickled with the below ver. of sklearn
 RUN pip install scikit-learn==0.24.1
@@ -20,20 +46,22 @@ RUN pip install https://type4py.com/pretrained_models/annoy-wheels/annoy-1.17.0-
 # For production env., install ONNXRuntime with GPU support
 RUN pip install onnx==1.10 onnxruntime==1.10 onnxruntime-gpu==1.10
 
-# Install Type4Py
-RUN pip install -e .
+RUN pip install --upgrade pip
+RUN pip install setuptools-rust
 
-# Web server's required packages
-RUN pip install -r type4py/server/requirements.txt
+# install libsa4py
+RUN git clone https://github.com/LangFeng0912/libsa4py.git
+RUN pip install -r libsa4py/requirements.txt
+RUN pip install -e libsa4py/
 
-# Install NLTK corpus
+# install type4py
+RUN git clone https://github.com/LangFeng0912/type4py.git
+# RUN pip install -e type4py/
+
 RUN python3 -c "import nltk; nltk.download('stopwords')"
 RUN python3 -c "import nltk; nltk.download('wordnet')"
 RUN python3 -c "import nltk; nltk.download('omw-1.4')"
 RUN python3 -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 
-WORKDIR /type4py/type4py/server/
-
-EXPOSE 5010
-
-CMD ["bash", "run_server.sh"]
+# download dataset
+RUN wget https://zenodo.org/record/8255564/files/ManyTypes4PyV8.tar.gz?download=1

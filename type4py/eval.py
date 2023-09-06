@@ -10,9 +10,9 @@ import numpy as np
 
 logger.name = __name__
 
-def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, common_types: set,
-                    top_n: int=10):
 
+def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, common_types: set,
+                    top_n: int = 10):
     all_ubiq_types = 0
     corr_ubiq_types = 0
     all_common_types = 0
@@ -26,7 +26,7 @@ def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, c
     corr_rare_mask = np.array([False] * len(y_pred), dtype=np.bool)
 
     for idx, p in enumerate(y_pred):
-        
+
         if y_true[idx] in ubiquitous_types:
             all_ubiq_types += 1
             if y_true[idx] in p[:top_n]:
@@ -44,11 +44,13 @@ def eval_type_embed(y_pred: np.array, y_true: np.array, ubiquitous_types: set, c
                 corr_rare_types += 1
                 corr_rare_mask[idx] = True
 
-    return (corr_ubiq_types + corr_common_types + corr_rare_types) / len(y_pred) * 100.0, corr_ubiq_types / all_ubiq_types * 100.0, \
-            corr_common_types / all_common_types * 100.0, corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
+    return (corr_ubiq_types + corr_common_types + corr_rare_types) / len(
+        y_pred) * 100.0, corr_ubiq_types / all_ubiq_types * 100.0, \
+           corr_common_types / all_common_types * 100.0, corr_rare_types / all_rare_types * 100.0, corr_common_mask, corr_rare_mask
+
 
 def eval_parametric_match(y_pred: np.array, y_true: np.array, ubiquitous_types: str,
-                          common_types: set, label_enc, top_n: int=10):
+                          common_types: set, label_enc, top_n: int = 10):
     """
     Finds correct parametric types in predicted types. That is, List[*] is parametric type.
     Only outermost is considered, which is List in the given example.
@@ -68,11 +70,11 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, ubiquitous_types: 
                 if true_param_type.group(1) == re.match(param_type_match, p).group(1):
                     no_match += 1
                     break
-        
+
         return no_match
 
     for idx, t in enumerate(tqdm(y_true, total=len(y_true), desc="Calculating parametric match")):
-        
+
         if t in ubiquitous_types:
             # The selected ubiquitous types are not parametric types
             if t in y_pred[idx][:top_n]:
@@ -96,9 +98,10 @@ def eval_parametric_match(y_pred: np.array, y_true: np.array, ubiquitous_types: 
                     corr_param_rare_types += pred_param_types(y_pred[idx], matched_param_type)
 
     return (corr_ubiq_types + corr_param_common_types + corr_param_rare_types) / len(y_pred) * 100.0, \
-            corr_param_common_types / all_param_common_types * 100.0, corr_param_rare_types / all_param_rare_types * 100.0
+           corr_param_common_types / all_param_common_types * 100.0, corr_param_rare_types / all_param_rare_types * 100.0
 
-def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr_all=False):
+
+def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, approach, top_n=10, mrr_all=False):
     """
     Computes evaluation metrics such as recall, precision and f1-score
     """
@@ -107,7 +110,7 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
     def pred_types_fix(y_true: str, y_pred: List[Tuple[str, int]]):
         for i, (p, _) in enumerate(y_pred[:top_n]):
             if p == y_true:
-                return p, 1/(i+1)
+                return p, 1 / (i + 1)
 
         return y_pred[0][0], 0.0
 
@@ -118,19 +121,20 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
             if re.match(param_type_match, p):
                 if re.match(param_type_match, true_param_type).group(1) == re.match(param_type_match, p).group(1):
                     no_match += 1
-                    r = 1/(i+1)
+                    r = 1 / (i + 1)
                     break
             else:
                 if re.match(param_type_match, true_param_type).group(1).lower() == p.lower():
                     no_match += 1
-                    r = 1/(i+1)
+                    r = 1 / (i + 1)
                     break
-        
+
         return no_match, r
 
-    #ubiquitous_types = {'str', 'int', 'list', 'bool', 'float'}
-    ubiquitous_types = {'str', 'int', 'list', 'bool', 'float', 'typing.Text', 'typing.List', 'typing.List[typing.Any]', 'typing.list'}
-    #common_types = common_types - ubiquitous_types
+    # ubiquitous_types = {'str', 'int', 'list', 'bool', 'float'}
+    ubiquitous_types = {'str', 'int', 'list', 'bool', 'float', 'typing.Text', 'typing.List', 'typing.List[typing.Any]',
+                        'typing.list'}
+    # common_types = common_types - ubiquitous_types
 
     all_ubiq_types = 0
     corr_ubiq_types = 0
@@ -152,7 +156,7 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
     mrr_param_ubiq = []
     mrr_param_comm = []
     mrr_param_rare = []
-   
+
     for p in tqdm(test_pred, total=len(test_pred)):
 
         if p['task'] not in tasks:
@@ -160,7 +164,7 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
 
         top_n_pred, r = pred_types_fix(p['original_type'], p['predictions'])
         mrr.append(r)
-        
+
         if p['original_type'] in ubiquitous_types:
             all_ubiq_types += 1
             mrr_exact_ubiq.append(r)
@@ -190,39 +194,57 @@ def eval_pred_dsl(test_pred: List[dict], common_types, tasks: set, top_n=10, mrr
             #     mrr_exact_rare.append(r)
 
     tasks = 'Combined' if tasks == {'Parameter', 'Return', 'Variable'} else list(tasks)[0]
-    logger.info(f"Type4Py - {tasks} - Exact match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.1f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - ubiquitous: {corr_ubiq_types / all_ubiq_types * 100.0:.1f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - common: {corr_common_types / all_common_types * 100.0:.1f}%")
-    logger.info(f"Type4Py - {tasks} - Exact match - rare: {corr_rare_types / all_rare_types * 100.0:.1f}%")
 
-    logger.info(f"Type4Py - {tasks} - Parametric match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types + corr_param_common_types + corr_param_rare_types) / (all_ubiq_types+all_common_types+all_rare_types) * 100.0:.1f}%")
-    logger.info(f"Type4Py - {tasks} - Parametric match - common: {(corr_param_common_types + corr_common_types) / all_common_types * 100.0:.1f}%")
-    logger.info(f"Type4Py - {tasks} - Parametric match - rare: {(corr_param_rare_types+corr_rare_types) / all_rare_types * 100.0:.1f}%")
-    
-    logger.info(f"Type4Py - Mean reciprocal rank {np.mean(mrr)*100:.1f}")
+    if approach == "t4py":
+        approach_name = "Type4Py"
+    elif approach == "t4pyre":
+        approach_name = "Type4Pyre"
+    elif approach == "t4pyright":
+        approach_name = "Type4Pyright"
+    else:
+        approach_name = "UnDefined"
+
+    logger.info(
+        f"{approach_name} - {tasks} - Exact match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types) / (all_ubiq_types + all_common_types + all_rare_types) * 100.0:.1f}%")
+    logger.info(f"{approach_name} - {tasks} - Exact match - ubiquitous: {corr_ubiq_types / all_ubiq_types * 100.0:.1f}%")
+    logger.info(f"{approach_name} - {tasks} - Exact match - common: {corr_common_types / all_common_types * 100.0:.1f}%")
+    logger.info(f"{approach_name} - {tasks} - Exact match - rare: {corr_rare_types / all_rare_types * 100.0:.1f}%")
+
+    logger.info(
+        f"{approach_name} - {tasks} - Parametric match - all: {(corr_ubiq_types + corr_common_types + corr_rare_types + corr_param_common_types + corr_param_rare_types) / (all_ubiq_types + all_common_types + all_rare_types) * 100.0:.1f}%")
+    logger.info(
+        f"{approach_name} - {tasks} - Parametric match - common: {(corr_param_common_types + corr_common_types) / all_common_types * 100.0:.1f}%")
+    logger.info(
+        f"{approach_name} - {tasks} - Parametric match - rare: {(corr_param_rare_types + corr_rare_types) / all_rare_types * 100.0:.1f}%")
+
+    logger.info(f"{approach_name}- Mean reciprocal rank {np.mean(mrr) * 100:.1f}")
 
     if mrr_all:
-        logger.info(f"Type4Py - {tasks} - MRR - Exact match - all: {np.mean(mrr)*100:.1f}")
-        logger.info(f"Type4Py - {tasks} - MRR - Exact match - ubiquitous: {np.mean(mrr_exact_ubiq)*100:.1f}")
-        logger.info(f"Type4Py - {tasks} - MRR - Exact match - common: {np.mean(mrr_exact_comm)*100:.1f}")
-        logger.info(f"Type4Py - {tasks} - MRR - Exact match - rare: {np.mean(mrr_exact_rare)*100:.1f}")
-        #print(mrr_param_comm)
-        logger.info(f"Type4Py - {tasks} - MRR - Parameteric match - all: {np.mean(mrr_exact_ubiq+mrr_exact_comm+mrr_exact_rare+mrr_param_comm+mrr_param_rare)*100:.1f}")
-        logger.info(f"Type4Py - {tasks} - MRR - Parameteric match - common: {np.mean(mrr_param_comm+mrr_exact_comm)*100:.1f}")
-        logger.info(f"Type4Py - {tasks} - MRR - Parameteric match - rare: {np.mean(mrr_param_rare+mrr_exact_rare)*100:.1f}")
+        logger.info(f"Type4Py - {tasks} - MRR - Exact match - all: {np.mean(mrr) * 100:.1f}")
+        logger.info(f"Type4Py - {tasks} - MRR - Exact match - ubiquitous: {np.mean(mrr_exact_ubiq) * 100:.1f}")
+        logger.info(f"Type4Py - {tasks} - MRR - Exact match - common: {np.mean(mrr_exact_comm) * 100:.1f}")
+        logger.info(f"Type4Py - {tasks} - MRR - Exact match - rare: {np.mean(mrr_exact_rare) * 100:.1f}")
+        # print(mrr_param_comm)
+        logger.info(
+            f"Type4Py - {tasks} - MRR - Parameteric match - all: {np.mean(mrr_exact_ubiq + mrr_exact_comm + mrr_exact_rare + mrr_param_comm + mrr_param_rare) * 100:.1f}")
+        logger.info(
+            f"Type4Py - {tasks} - MRR - Parameteric match - common: {np.mean(mrr_param_comm + mrr_exact_comm) * 100:.1f}")
+        logger.info(
+            f"Type4Py - {tasks} - MRR - Parameteric match - rare: {np.mean(mrr_param_rare + mrr_exact_rare) * 100:.1f}")
 
-    return np.mean(mrr)*100
+    return np.mean(mrr) * 100
 
-def evaluate(output_path: str, data_name: str, tasks: set, top_n: int=10, mrr_all=False):
 
+def evaluate(output_path: str, approach_name: str, data_name: str, tasks: set, top_n: int = 10, mrr_all=False):
     logger.info(f"Evaluating the Type4Py {data_name} model for {tasks} prediction task")
     logger.info(f"*************************************************************************")
-    # Loading label encoder andd common types
-    test_pred = load_json(join(output_path, f'type4py_{data_name}_test_predictions.json'))
+    # Loading label encoder and common types
+    test_pred = load_json(join(output_path, f'{approach_name}_{data_name}_test_predictions.json'))
     le_all = pickle.load(open(join(output_path, "label_encoder_all.pkl"), 'rb'))
-    common_types = pickle.load(open(join(output_path, "complete_common_types.pkl"), 'rb'))
+    common_types = pickle.load(open(join(output_path, "complete_common_types_ret_var_param.pkl"), 'rb'))
+    common_types = [int(element) for element in common_types]
     common_types = set(le_all.inverse_transform(list(common_types)))
-    #ubiquitous_types = {'str', 'int', 'list', 'bool', 'float'}
-    #common_types = common_types - ubiquitous_types
-    
-    eval_pred_dsl(test_pred, common_types, tasks, top_n=top_n, mrr_all=mrr_all)
+    # ubiquitous_types = {'str', 'int', 'list', 'bool', 'float'}
+    # common_types = common_types - ubiquitous_types
+
+    eval_pred_dsl(test_pred, common_types, tasks, approach_name, top_n=top_n, mrr_all=mrr_all)

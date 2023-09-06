@@ -39,6 +39,8 @@ pip install .
 Follow the below steps to train and evaluate the Type4Py model.
 ## 1. Extraction
 **NOTE:** Skip this step if you're using the ManyTypes4Py dataset.
+
+**NOTE:** You can find a new ManyTypes4Py dataset(MTV0.8) on [Zenedo](https://zenodo.org/record/8321283).
 ```
 $ type4py extract --c $DATA_PATH --o $OUTPUT_DIR --d $DUP_FILES --w $CORES
 ```
@@ -63,26 +65,74 @@ $ type4py vectorize --o $OUTPUT_DIR
 Description:
 - `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
 
-## 4. Learning
+[//]: # (## 4. Learning)
+
+[//]: # (```)
+
+[//]: # ($ type4py learn --o $OUTPUT_DIR --c --p $PARAM_FILE)
+
+[//]: # (```)
+
+[//]: # (Description:)
+
+[//]: # (- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.)
+
+[//]: # (- `--c`: Trains the complete model. Use `type4py learn -h` to see other configurations.)
+
+[//]: # ()
+[//]: # (- `--p $PARAM_FILE`: The path to user-provided hyper-parameters for the model. See [this]&#40;https://github.com/saltudelft/type4py/blob/main/type4py/model_params.json&#41; file as an example. [Optional])
+
+## 4*. Learning separately
 ```
-$ type4py learn --o $OUTPUT_DIR --c --p $PARAM_FILE
+$ type4py learns --o $OUTPUT_DIR --dt $DATA_TYPE --c --p $PARAM_FILE 
 ```
-Description:
 - `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
+- `$DATA_TYPE`: Sequential Learing, either `var`, or `param` or `ret`
 - `--c`: Trains the complete model. Use `type4py learn -h` to see other configurations.
 
 - `--p $PARAM_FILE`: The path to user-provided hyper-parameters for the model. See [this](https://github.com/saltudelft/type4py/blob/main/type4py/model_params.json) file as an example. [Optional]
 
-## 5. Testing
+## 5**. Gernerating Type Cluster
 ```
-$ type4py predict --o $OUTPUT_DIR --c
+$ type4py gen_type_clu --o $OUTPUT_DIR --dt $DATA_TYPE 
+```
+- `$OUTPUT_DIR`: The path that was used in the previous step to store processed projects.
+- `$DATA_TYPE`: Sequential Learing, either `var`, or `param` or `ret`
+
+## 6. Reducing Type Cluster
+To reduce the dimension of the created type clusters in step 5, run the following command:
+> Note: The reduced version of type clusters causes a slight performance loss in type prediction.
+```
+$ type4py reduce --o $OUTPUT_DIR --d $DIMENSION
 ```
 
 Description:
 - `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `--c`: Predicts using the complete model. Use `type4py predict -h` to see other configurations.
+- `$DIMENSION`: Reduces the dimension of type clusters to the specified value [Default: 256]
 
-## 6. Evaluating
+## 7*. Project-base inference
+```python
+$ type4py infer_project --m results --p raw_projects --o results --a t4py
+```
+- `$--m`: The path that saved the model
+- `$--p`:The path that saved the raw projects, for project-base inference
+- `$--o`:The path that output the inference results
+- `$--a`:The approach you want, including t4py, t4pyre, t4pyright
+```python
+$ type4py infer_project --m results --p raw_projects --o results --a t4pyre
+```
+
+## 7. Testing
+```
+$ type4py predicts --o $OUTPUT_DIR
+```
+
+Description:
+- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
+
+[//]: # (- `--c`: Predicts using the complete model. Use `type4py predict -h` to see other configurations.)
+
+## 8. Evaluating
 ```
 $ type4py eval --o $OUTPUT_DIR --t c --tp 10
 ```
@@ -95,16 +145,6 @@ Description:
 
 Use `type4py eval -h` to see other options.
 
-## Reduce
-To reduce the dimension of the created type clusters in step 5, run the following command:
-> Note: The reduced version of type clusters causes a slight performance loss in type prediction.
-```
-$ type4py reduce --o $OUTPUT_DIR --d $DIMENSION
-```
-
-Description:
-- `$OUTPUT_DIR`: The path that was used in the first step to store processed projects.
-- `$DIMENSION`: Reduces the dimension of type clusters to the specified value [Default: 256]
 
 # Converting Type4Py to ONNX
 To convert the pre-trained Type4Py model to the [ONNX](https://onnxruntime.ai/) format, use the following command:
